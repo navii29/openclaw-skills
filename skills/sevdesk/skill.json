@@ -1,0 +1,75 @@
+{
+  "name": "sevdesk",
+  "version": "1.0.0",
+  "description": "German accounting automation - invoices, contacts, vouchers, banking via SevDesk API",
+  "author": "Navii Automation",
+  "tags": ["accounting", "german", "invoicing", "sevdesk", "buchhaltung", "rechnungen"],
+  "triggers": [
+    "sevdesk",
+    "rechnung",
+    "invoice",
+    "kontakt",
+    "contact",
+    "beleg",
+    "voucher",
+    "buchhaltung",
+    "accounting",
+    "mahnung",
+    "reminder",
+    "konto",
+    "bank",
+    "ust",
+    "vat"
+  ],
+  "entrypoint": "sevdesk.py",
+  "help": "SKILL.md",
+  "env": [
+    {
+      "name": "SEVDESK_API_TOKEN",
+      "description": "Your SevDesk API token from Settings → API",
+      "required": true
+    }
+  ],
+  "commands": {
+    "contacts": {
+      "description": "List all contacts (customers/suppliers)",
+      "args": [{"name": "search", "optional": true, "description": "Search by name"}]
+    },
+    "contact": {
+      "description": "Get contact details",
+      "args": [{"name": "id", "required": true}]
+    },
+    "invoices": {
+      "description": "List invoices",
+      "args": [{"name": "status", "optional": true, "description": "draft, open, or paid"}]
+    },
+    "invoice": {
+      "description": "Get invoice details",
+      "args": [{"name": "id", "required": true}]
+    },
+    "unpaid": {
+      "description": "Show unpaid/overdue invoices",
+      "args": [{"name": "days", "optional": true, "description": "Days overdue"}]
+    },
+    "create-invoice": {
+      "description": "Create new invoice interactively",
+      "args": [{"name": "contact_id", "required": true}]
+    },
+    "bank-accounts": {
+      "description": "List bank accounts with balances"
+    },
+    "transactions": {
+      "description": "List bank transactions",
+      "args": [{"name": "account_id", "optional": true}]
+    },
+    "vouchers": {
+      "description": "List expense vouchers"
+    }
+  },
+  "examples": [
+    "sevdesk contacts",
+    "sevdesk invoices open",
+    "sevdesk unpaid 30",
+    "sevdesk bank-accounts"
+  ]
+}
