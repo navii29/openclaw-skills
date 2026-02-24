@@ -5,12 +5,13 @@ description: Deploy 1-click AI email automation for businesses. Sorts, prioritiz
 
 # Inbox AI - Business Email Automation
 
-**Version:** 2.0.0 | **Preis:** 199 EUR/Monat | **Support:** DE/EN
+**Version:** 2.1.0 | **Preis:** 199 EUR/Monat | **Support:** DE/EN
 
 Complete email automation system for service businesses, executives, and support teams.
 
 ## Capabilities
 
+### Core Features (v2.0)
 - **Automatic Categorization** - Sorts emails by type (inquiry, support, spam, urgent)
 - **Smart Prioritization** - Ranks by sender importance & urgency
 - **TL;DR Summaries** - Thread summaries for quick understanding
@@ -21,6 +22,30 @@ Complete email automation system for service businesses, executives, and support
 - **Escalation** - Marks complex requests for human approval
 - **Multilingual** - German & English support
 - **< 5min Response Time** - 24/7 availability
+
+### v2.1.0 Self-Healing System 🆕
+- **Zero-Config Onboarding** - Auto-detect email provider from address
+  - Supports IONOS, Gmail, Outlook auto-detection
+  - Tests connection before going live
+  - No manual server configuration needed
+- **Circuit Breaker** - Automatic failover on email provider issues
+  - CLOSED: Normal operation
+  - OPEN: Fast-fail after 5 consecutive failures
+  - HALF_OPEN: Gradual recovery testing
+- **Exponential Backoff** - Intelligent retry with jitter
+  - Base delay: 1s, Max delay: 60s
+  - Prevents thundering herd problems
+  - Automatic reconnection
+- **Health Monitoring** - Real-time system health score
+  - IMAP/SMTP connectivity checks
+  - Email processing success rate
+  - Circuit breaker state monitoring
+  - Uptime tracking
+- **Learning Engine** - Adapts from user feedback
+  - Tracks approved/rejected auto-replies
+  - Sender importance scoring
+  - Category accuracy improvement
+  - Response time optimization
 
 ## Use Cases
 
@@ -86,11 +111,28 @@ python3 scripts/test_email_connection.py
 python3 scripts/inbox_processor.py --mode=auto
 ```
 
+### v2.1.0: Zero-Config Setup (Self-Healing)
+```bash
+# Auto-detect and configure email provider
+python3 self_healing_system.py --email user@company.de --password secret auto-config
+
+# Check system health
+python3 self_healing_system.py --email user@company.de --password secret health
+
+# View learning statistics
+python3 self_healing_system.py --email user@company.de --password secret learning-stats
+
+# Send test email
+python3 self_healing_system.py --email user@company.de --password secret \
+    --to recipient@example.com --test-send
+```
+
 ## Supported Providers
 
-- **IONOS** (German businesses) - See `references/ionos-setup.md`
-- **Gmail** (Google Workspace) - See `references/gmail-setup.md`
-- **Custom IMAP/SMTP** - Any provider with standard protocols
+- **IONOS** (German businesses) - Auto-detected
+- **Gmail** (Google Workspace) - Auto-detected
+- **Outlook/Office365** - Auto-detected
+- **Custom IMAP/SMTP** - Auto-detected from MX records
 
 ## Configuration
 
@@ -168,6 +210,118 @@ View flagged emails needing attention:
 python3 scripts/list_escalated.py
 ```
 
+### v2.1.0: Self-Healing System API
+
+```python
+from self_healing_system import (
+    SelfHealingEmailClient, 
+    ZeroConfigSetup,
+    LearningEngine,
+    RetryPolicy,
+    CircuitBreaker
+)
+
+# Zero-Config Setup
+config = ZeroConfigSetup.auto_configure(
+    email="kontakt@company.de",
+    password="your-password"
+)
+
+if config:
+    print(f"✅ Auto-configured: {config['provider'].value}")
+    print(f"   IMAP: {config['imap_server']}")
+    print(f"   SMTP: {config['smtp_server']}")
+
+# Self-Healing Email Client
+client = SelfHealingEmailClient(
+    imap_server=config["imap_server"],
+    imap_port=config["imap_port"],
+    smtp_server=config["smtp_server"],
+    smtp_port=config["smtp_port"],
+    username=config["username"],
+    password=config["password"],
+    provider=config["provider"],
+    retry_policy=RetryPolicy(
+        max_retries=5,
+        base_delay=1.0,
+        jitter=True
+    )
+)
+
+# Connect with automatic retry
+if client.connect():
+    print("✅ Connected with self-healing enabled")
+    
+    # Send email (auto-retry on failure)
+    success = client.send_email(
+        to="recipient@example.com",
+        subject="Test",
+        body="Hello from self-healing system!"
+    )
+    
+    # Check health metrics
+    metrics = client.get_health_metrics()
+    print(f"Health: {metrics.status} ({metrics.health_score:.0f}/100)")
+    print(f"Circuit: {metrics.circuit_state}")
+    print(f"Uptime: {metrics.uptime_minutes:.0f} min")
+    
+    client.disconnect()
+
+# Learning Engine
+engine = LearningEngine()
+
+# Record user feedback
+engine.record_feedback(
+    email_id="msg123",
+    sender="customer@example.com",
+    category="inquiry",
+    reply_text="Thank you for your inquiry...",
+    approved=True,  # User approved this auto-reply
+    response_time_ms=1200
+)
+
+# Get sender importance
+importance = engine.get_sender_importance("vip@client.com")
+print(f"Sender importance: {importance:.2f}")  # 0.0 - 1.0
+
+# Get learning stats
+stats = engine.get_learning_stats()
+print(f"Approval rate: {stats['approval_rate']*100:.1f}%")
+print(f"Total feedback: {stats['total_feedback']}")
+```
+
 ## Troubleshooting
+
+### Self-Healing Diagnostics
+
+```bash
+# Check system health
+python3 self_healing_system.py --email user@company.de --password secret health
+
+# Expected output:
+# 📊 Health Status: 🟢 Excellent
+#    Score: 95.0/100
+#    IMAP: ✅
+#    SMTP: ✅
+#    Circuit: closed
+#    Uptime: 120.5 min
+```
+
+### Circuit Breaker States
+
+| State | Meaning | Action |
+|-------|---------|--------|
+| `closed` | Normal operation | Continue processing |
+| `open` | 5+ failures, fast-failing | Wait 60s for recovery |
+| `half_open` | Testing recovery | Limited test requests |
+
+### Learning Engine Storage
+
+Learning data is stored in `~/.inbox_ai/learning.db` (SQLite).
+
+Tables:
+- `feedback` - User feedback on auto-replies
+- `sender_scores` - Sender importance scores
+- `category_accuracy` - Classification accuracy tracking
 
 See `references/troubleshooting.md` for common issues.
