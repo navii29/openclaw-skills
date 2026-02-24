@@ -1,0 +1,16 @@
+{
+  "name": "leitcode-validator",
+  "version": "1.0.0",
+  "description": "Deutsche Leitcode-Validierung für Post/DHL",
+  "author": "Navii Automation",
+  "price": 29,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["leitcode", "post", "dhl", "plz", "validation", "german"],
+  "triggers": ["leitcode", "post", "plz"],
+  "entrypoint": "leitcode_validator.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["leitcode-validator 12345"]
+}

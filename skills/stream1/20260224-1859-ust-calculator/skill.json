@@ -1,0 +1,16 @@
+{
+  "name": "ust-calculator",
+  "version": "1.0.0",
+  "description": "Deutsche Umsatzsteuer-Berechnung (19%, 7%, 0%)",
+  "author": "Navii Automation",
+  "price": 29,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["ust", "mehrwertsteuer", "steuer", "calculator", "german"],
+  "triggers": ["ust", "mwst", "mehrwertsteuer"],
+  "entrypoint": "ust_calculator.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["ust-calculator --netto 100 --satz 19"]
+}

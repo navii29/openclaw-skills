@@ -5,6 +5,8 @@ description: Deploy 1-click AI email automation for businesses. Sorts, prioritiz
 
 # Inbox AI - Business Email Automation
 
+**Version:** 2.0.0 | **Preis:** 199 EUR/Monat | **Support:** DE/EN
+
 Complete email automation system for service businesses, executives, and support teams.
 
 ## Capabilities
@@ -19,6 +21,47 @@ Complete email automation system for service businesses, executives, and support
 - **Escalation** - Marks complex requests for human approval
 - **Multilingual** - German & English support
 - **< 5min Response Time** - 24/7 availability
+
+## Use Cases
+
+### Use Case 1: Kundenservice-Automatisierung für E-Commerce
+**Ziel:** 24/7 Verfügbarkeit für Kundenanfragen ohne zusätzliches Personal
+
+**Szenario:** Ein Onlineshop erhält täglich 50-100 E-Mails zu Bestellstatus, Retouren und Produktfragen.
+
+**Lösung mit Inbox AI:**
+- Kategorisierung: Bestellung / Retoure / Produktfrage / Beschwerde
+- Automatische Antworten mit Bestellstatus (via Shop-API)
+- Eskalation von Beschwerden an Teamleiter
+- TL;DR Zusammenfassungen für lange Kundenkonversationen
+
+**Ergebnis:** 80% der Anfragen werden vollautomatisch bearbeitet, Reaktionszeit von Stunden auf Minuten reduziert.
+
+### Use Case 2: Executive Inbox Management
+**Ziel:** Wichtige E-Mails nicht übersehen, Zeitfresser eliminieren
+
+**Szenario:** Ein Geschäftsführer erhält 200+ E-Mails täglich und verpasst kritische Nachrichten im Spam.
+
+**Lösung mit Inbox AI:**
+- Smart Prioritization: VIP-Absender werden sofort hervorgehoben
+- TL;DR für lange E-Mail-Threads
+- Auto-Archive für Newsletter und CC-Mails
+- Telegram-Benachrichtigung für E-Mails mit Score > 0.9
+
+**Ergebnis:** 2-3 Stunden Zeitersparnis pro Tag, keine übersehenen wichtigen E-Mails mehr.
+
+### Use Case 3: Terminbuchung für Dienstleister
+**Ziel:** Terminanfragen automatisch qualifizieren und buchen
+
+**Szenario:** Eine Beratungsagentur erhält ständig Terminanfragen mit unterschiedlichem Kontext.
+
+**Lösung mit Inbox AI:**
+- Erkennung von Terminanfragen via KI-Kategorisierung
+- Automatische Antwort mit Calendly-Link
+- Qualifizierung: Budget, Zeithorizont, Dienstleistung
+- Eskalation komplexer Projekte an Vertrieb
+
+**Ergebnis:** 60% der Termine werden selbstständig gebucht, Vertrieb konzentriert sich auf qualifizierte Leads.
 
 ## Quick Start
 

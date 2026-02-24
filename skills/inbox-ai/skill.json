@@ -1,0 +1,59 @@
+{
+  "name": "inbox-ai",
+  "version": "2.0.0",
+  "description": "AI-powered email automation for businesses. Sorts, prioritizes, and auto-replies to emails 24/7 with German & English support.",
+  "author": "Navii Automation",
+  "price": 199,
+  "currency": "EUR",
+  "billing": "monthly",
+  "tags": ["email", "automation", "ai", "inbox", "support", "german", "english", "imap", "smtp"],
+  "triggers": [
+    "email",
+    "inbox",
+    "automation",
+    "mail",
+    "support",
+    "kundenservice",
+    "auto-reply",
+    "ionos",
+    "gmail"
+  ],
+  "entrypoint": "scripts/inbox_processor_v2.py",
+  "help": "SKILL.md",
+  "env": [
+    {
+      "name": "IMAP_SERVER",
+      "description": "IMAP server address (e.g., imap.ionos.de)",
+      "required": true
+    },
+    {
+      "name": "EMAIL_USERNAME",
+      "description": "Email address for login",
+      "required": true
+    },
+    {
+      "name": "EMAIL_PASSWORD",
+      "description": "Email password or app password",
+      "required": true
+    }
+  ],
+  "commands": {
+    "monitor": {
+      "description": "Start in monitoring mode (read-only)",
+      "args": []
+    },
+    "auto": {
+      "description": "Start full automation with auto-replies",
+      "args": []
+    },
+    "test": {
+      "description": "Test email connection",
+      "args": []
+    }
+  },
+  "examples": [
+    "inbox-ai monitor",
+    "inbox-ai auto",
+    "inbox-ai test"
+  ]
+}

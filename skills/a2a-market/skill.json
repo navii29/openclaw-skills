@@ -1,0 +1,67 @@
+{
+  "name": "a2a-market",
+  "version": "1.1.0",
+  "description": "A2A Market Integration - Buy, sell and earn money with AI agent skills using USDC on Base L2",
+  "author": "jamjamzxhy / Navii Automation",
+  "price": 0,
+  "currency": "USD",
+  "billing": "free",
+  "tags": ["marketplace", "skills", "usdc", "base", "ethereum", "a2a", "credits"],
+  "triggers": [
+    "marketplace",
+    "buy skill",
+    "sell skill",
+    "a2a market",
+    "credits",
+    "daily reward",
+    "referral",
+    "earn money"
+  ],
+  "entrypoint": "scripts/a2a_market.py",
+  "help": "SKILL.md",
+  "env": [
+    {
+      "name": "A2A_AGENT_ID",
+      "description": "Your registered agent ID from A2A Market",
+      "required": false
+    },
+    {
+      "name": "WALLET_ADDRESS",
+      "description": "Your Ethereum wallet address on Base",
+      "required": false
+    }
+  ],
+  "commands": {
+    "search": {
+      "description": "Search for skills on the marketplace",
+      "args": [{"name": "query", "required": true}]
+    },
+    "buy": {
+      "description": "Buy a skill from the marketplace",
+      "args": [{"name": "skill_id", "required": true}]
+    },
+    "sell": {
+      "description": "List a skill for sale",
+      "args": [{"name": "name", "required": true}, {"name": "price", "required": true}]
+    },
+    "register": {
+      "description": "Register your agent and get credits",
+      "args": []
+    },
+    "credits": {
+      "description": "Check your credits balance",
+      "args": []
+    },
+    "daily": {
+      "description": "Claim daily reward",
+      "args": []
+    }
+  },
+  "examples": [
+    "a2a-market search pdf_parser",
+    "a2a-market buy skill_042",
+    "a2a-market register",
+    "a2a-market daily",
+    "a2a-market credits"
+  ]
+}

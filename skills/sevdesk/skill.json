@@ -1,9 +1,12 @@
 {
   "name": "sevdesk",
-  "version": "1.0.0",
-  "description": "German accounting automation - invoices, contacts, vouchers, banking via SevDesk API",
+  "version": "2.3.0",
+  "description": "German accounting automation with connection pooling, dunning system, and full UTF-8 support",
   "author": "Navii Automation",
-  "tags": ["accounting", "german", "invoicing", "sevdesk", "buchhaltung", "rechnungen"],
+  "price": 299,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["accounting", "german", "invoicing", "sevdesk", "buchhaltung", "rechnungen", "mahnung", "dunning"],
   "triggers": [
     "sevdesk",
     "rechnung",
@@ -15,13 +18,15 @@
     "buchhaltung",
     "accounting",
     "mahnung",
+    "dunning",
+    "mahnwesen",
     "reminder",
     "konto",
     "bank",
     "ust",
     "vat"
   ],
-  "entrypoint": "sevdesk.py",
+  "entrypoint": "sevdesk_v2.py",
   "help": "SKILL.md",
   "env": [
     {
@@ -64,12 +69,49 @@
     },
     "vouchers": {
       "description": "List expense vouchers"
+    },
+    "dunning": {
+      "description": "List overdue invoices with dunning status (v2.3.0)",
+      "args": [{"name": "days", "optional": true, "description": "Minimum days overdue"}]
+    },
+    "dunning-summary": {
+      "description": "Show dunning summary and recommendations (v2.3.0)"
+    },
+    "create-dunning": {
+      "description": "Create dunning/reminder for invoice (v2.3.0)",
+      "args": [
+        {"name": "invoice_id", "required": true},
+        {"name": "level", "optional": true, "description": "1=Reminder, 2=First, 3=Second, 4=Final"}
+      ]
+    },
+    "batch-dunning": {
+      "description": "Create dunnings for multiple invoices (v2.3.0)",
+      "args": [
+        {"name": "invoice_ids", "required": true, "description": "Comma-separated IDs"},
+        {"name": "level", "optional": true}
+      ]
+    },
+    "health": {
+      "description": "Check API health status (v2.2.0)"
+    },
+    "export-contacts": {
+      "description": "Export contacts to CSV (v2.2.0)"
+    },
+    "export-invoices": {
+      "description": "Export invoices to CSV (v2.2.0)"
+    },
+    "stats": {
+      "description": "Show API statistics and cache info"
     }
   },
   "examples": [
-    "sevdesk contacts",
-    "sevdesk invoices open",
-    "sevdesk unpaid 30",
-    "sevdesk bank-accounts"
+    "sevdesk contacts --search Müller",
+    "sevdesk invoices --status open",
+    "sevdesk unpaid --days 30",
+    "sevdesk dunning --days 30",
+    "sevdesk dunning-summary",
+    "sevdesk create-dunning INV123 --level 2 --fee 5.00",
+    "sevdesk health",
+    "sevdesk export-contacts --output contacts.csv"
   ]
 }

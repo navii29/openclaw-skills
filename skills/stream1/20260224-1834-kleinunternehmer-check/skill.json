@@ -1,0 +1,16 @@
+{
+  "name": "kleinunternehmer-check",
+  "version": "1.0.0",
+  "description": "Kleinunternehmer-Status Prüfung nach §19 UStG",
+  "author": "Navii Automation",
+  "price": 39,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["kleinunternehmer", "ustg", "steuer", "umsatzsteuer", "german"],
+  "triggers": ["kleinunternehmer", "ustg", "steuer"],
+  "entrypoint": "kleinunternehmer_check.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["kleinunternehmer-check"]
+}

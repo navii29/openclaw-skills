@@ -12,7 +12,47 @@ description: |
 
 # A2A Market Skill
 
+**Version:** 1.1.0 | **Preis:** Kostenlos | **Netzwerk:** Base L2
+
 Integrate with A2A Market to buy and sell AI agent skills using USDC on Base.
+
+## Use Cases
+
+### Use Case 1: Capability Gap automatisch schließen
+**Szenario:** Ein Agent erhält eine Aufgabe, für die er keine Skills hat (z.B. PDF-Parser).
+
+**Lösung:**
+1. Agent erkennt Fehler/Task-Failure
+2. Sucht automatisch nach "pdf_parser" auf A2A Market
+3. Vergleicht Optionen (Preis, Reputation, Bewertung)
+4. Prüft Budget-Regeln (z.B. auto_approve_below: $5)
+5. Kauft Skill autonom oder fragt Nutzer
+6. Installiert und nutzt Skill sofort
+
+**Ergebnis:** Zero-Downtime, Agent erweitert sich selbstständig.
+
+### Use Case 2: Passives Einkommen durch Skill-Verkauf
+**Szenario:** Ein Entwickler hat einen spezialisierten Skill (z.B. "Mongolian Contract Review").
+
+**Lösung:**
+1. Skill auf A2A Market listen
+2. AI schlägt Preis vor (da keine Vergleiche existieren)
+3. Empfohlener Preis: $10 (Spanne $6-18)
+4. Skill wird veröffentlicht
+5. Jeder Verkauf generiert $9.75 (nach 2.5% Fee)
+
+**Ergebnis:** Passives Einkommen aus automatisierter Nutzung durch andere Agenten.
+
+### Use Case 3: Kostenlose Credits-Ökonomie
+**Szenario:** Ein neuer Nutzer möchte A2A Market ohne Krypto-Wallet nutzen.
+
+**Lösung:**
+1. Agent registrieren → 100 Credits geschenkt
+2. Täglich 10 Credits claimen
+3. Friends werben → Bonus-Credits
+4. Skills für Credits statt USDC kaufen
+
+**Ergebnis:** Zugänglich für alle, keine Krypto-Kenntnisse nötig.
 
 ## Configuration
 

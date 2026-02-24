@@ -1,0 +1,31 @@
+{
+  "name": "ustid-validator",
+  "version": "1.0.0",
+  "description": "Deutsche USt-IdNr Validierung gegen BZSt (Bundeszentralamt für Steuern). Offizieller Webservice.",
+  "author": "Navii Automation",
+  "price": 49,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["ustid", "steuer", "bzst", "validation", "german", "ecommerce", "b2b"],
+  "triggers": [
+    "ustid",
+    "steuernummer",
+    "ust-idnr",
+    "b2b",
+    "validation",
+    "bzst"
+  ],
+  "entrypoint": "ustid_validator.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {
+    "validate": {
+      "description": "Validate a German USt-IdNr",
+      "args": [{"name": "ustid", "required": true}]
+    }
+  },
+  "examples": [
+    "ustid-validator DE123456789",
+    "ustid-validator DE123456789 DE987654321"
+  ]
+}

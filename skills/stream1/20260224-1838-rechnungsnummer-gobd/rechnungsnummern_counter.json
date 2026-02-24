@@ -1,0 +1,18 @@
+{
+  "schema": {
+    "prefix": "RE",
+    "jahr_format": "YYYY",
+    "trennzeichen": "-",
+    "ziffern": 5,
+    "start_nummer": 1
+  },
+  "jahr": 2026,
+  "letzte_nummer": 1,
+  "ausgegebene_nummern": [
+    {
+      "nummer": "RE-2026-00001",
+      "datum": "2026-02-24T18:35:07.768852",
+      "timestamp": "2026-02-24T18:35:07.768856"
+    }
+  ]
+}

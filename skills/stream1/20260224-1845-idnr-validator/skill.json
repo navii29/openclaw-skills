@@ -1,0 +1,16 @@
+{
+  "name": "idnr-validator",
+  "version": "1.0.0",
+  "description": "Steuer-IdNr (Identifikationsnummer) Validierung für Deutschland",
+  "author": "Navii Automation",
+  "price": 39,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["idnr", "steuer", "identifikation", "german", "validation"],
+  "triggers": ["idnr", "steuerid", "identifikationsnummer"],
+  "entrypoint": "idnr_validator.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["idnr-validator 12345678901"]
+}

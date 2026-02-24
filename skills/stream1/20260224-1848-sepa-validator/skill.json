@@ -1,0 +1,16 @@
+{
+  "name": "sepa-validator",
+  "version": "1.0.0",
+  "description": "IBAN/BIC Validierung für SEPA-Zahlungen",
+  "author": "Navii Automation",
+  "price": 49,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["sepa", "iban", "bic", "banking", "validation", "payment"],
+  "triggers": ["sepa", "iban", "bic", "bank"],
+  "entrypoint": "sepa_validator.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["sepa-validator DE89370400440532013000"]
+}

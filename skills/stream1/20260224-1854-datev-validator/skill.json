@@ -1,0 +1,16 @@
+{
+  "name": "datev-validator",
+  "version": "1.0.0",
+  "description": "DATEV-Format Validierung für Buchhaltungs-Daten",
+  "author": "Navii Automation",
+  "price": 59,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["datev", "buchhaltung", "steuer", "german", "accounting"],
+  "triggers": ["datev", "buchhaltung", "steuer"],
+  "entrypoint": "datev_validator.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["datev-validator buchungen.csv"]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "eori-validator",
+  "version": "1.0.0",
+  "description": "EORI-Nummer Validierung für Zoll und Import/Export. EU + GB Support.",
+  "author": "Navii Automation",
+  "price": 49,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["eori", "zoll", "customs", "import", "export", "validation"],
+  "triggers": ["eori", "zoll", "customs", "import", "export"],
+  "entrypoint": "eori_validator.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["eori-validator DE123456789"]
+}

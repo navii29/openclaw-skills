@@ -1,0 +1,16 @@
+{
+  "name": "xrechnung-validator",
+  "version": "1.0.0",
+  "description": "XRechnung XML Validator für EN 16931 / ZUGFeRD / Factur-X",
+  "author": "Navii Automation",
+  "price": 79,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["xrechnung", "zugferd", "e-invoicing", "xml", "german"],
+  "triggers": ["xrechnung", "zugferd", "e-invoice"],
+  "entrypoint": "xrechnung_validator.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["xrechnung-validator rechnung.xml"]
+}

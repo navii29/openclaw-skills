@@ -1,0 +1,16 @@
+{
+  "name": "rechnungsnummer-gobd",
+  "version": "1.0.0",
+  "description": "GoBD-konforme Rechnungsnummern-Generierung",
+  "author": "Navii Automation",
+  "price": 39,
+  "currency": "EUR",
+  "billing": "one-time",
+  "tags": ["rechnung", "gobd", "buchhaltung", "german", "steuer"],
+  "triggers": ["rechnung", "gobd", "buchhaltung"],
+  "entrypoint": "rechnungsnummer_gobd.py",
+  "help": "SKILL.md",
+  "env": [],
+  "commands": {},
+  "examples": ["rechnungsnummer-gobd"]
+}

@@ -56,7 +56,7 @@ T = TypeVar('T')
 
 # ==================== VERSION & CONSTANTS ====================
 
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 
 class InvoiceStatus(IntEnum):
     """Invoice status codes"""
@@ -86,6 +86,15 @@ class VoucherStatus(IntEnum):
     PARTIAL = 750
     PAID = 1000
 
+
+class DunningLevel(IntEnum):
+    """Dunning/reminder levels (Mahnstufen)"""
+    REMINDER = 1          # Erste Mahnung (friendly reminder)
+    FIRST = 2             # Zweite Mahnung (first formal dunning)
+    SECOND = 3            # Dritte Mahnung (second formal dunning)
+    FINAL = 4             # Letzte Mahnung (final notice before legal action)
+
+
 class WebhookEvent(str, Enum):
     """SevDesk webhook event types"""
     CONTACT_CREATED = "ContactCreate"
@@ -106,6 +115,11 @@ DEFAULT_RETRY_DELAY = 1.0
 DEFAULT_MAX_RETRIES = 3
 RATE_LIMIT_REQUESTS_PER_SECOND = 10
 DEFAULT_BATCH_CONCURRENCY = 5  # Max parallel batch operations
+
+# Connection Pool Settings
+CONNECTION_POOL_SIZE = 10
+CONNECTION_MAX_RETRIES = 3
+CONNECTION_POOL_ENABLED = True
 
 
 class CircuitState(Enum):
@@ -186,6 +200,35 @@ class HealthStatus:
             "api_version": self.api_version,
             "message": self.message,
             "timestamp": self.timestamp.isoformat()
+        }
+
+
+@dataclass
+class DunningResult:
+    """Result of a dunning/reminder operation"""
+    invoice_id: str
+    invoice_number: str
+    contact_name: str
+    amount_due: float
+    days_overdue: int
+    dunning_level: DunningLevel
+    success: bool
+    message: str = ""
+    reminder_date: Optional[str] = None
+    reminder_id: Optional[str] = None
+    
+    def to_dict(self) -> Dict:
+        return {
+            "invoice_id": self.invoice_id,
+            "invoice_number": self.invoice_number,
+            "contact_name": self.contact_name,
+            "amount_due": self.amount_due,
+            "days_overdue": self.days_overdue,
+            "dunning_level": self.dunning_level.name,
+            "success": self.success,
+            "message": self.message,
+            "reminder_date": self.reminder_date,
+            "reminder_id": self.reminder_id
         }
 
 
@@ -304,9 +347,16 @@ class OperationQueue:
                 logger.error(f"Failed to load queue: {e}")
 
 
+@dataclass
+class CacheEntry:
+    """Cache entry with expiration time"""
+    data: Any
+    expires_at: float
+
+
 class SimpleCache:
     """Simple TTL-based cache for API responses"""
-    
+
     def __init__(self, default_ttl: int = 300):
         self._cache: Dict[str, CacheEntry] = {}
         self.default_ttl = default_ttl
@@ -482,6 +532,11 @@ class SevDeskClient:
         self.operation_queue = OperationQueue()
         if queue_persist_path:
             self.operation_queue.set_persistence(queue_persist_path)
+        
+        # v2.3.0: Connection Pooling for performance
+        self._session: Optional[requests.Session] = None
+        if CONNECTION_POOL_ENABLED:
+            self._init_session()
     
     def _load_token_from_config(self, config_path: Optional[str]) -> Optional[str]:
         """Load API token from config file"""
@@ -502,6 +557,37 @@ class SevDeskClient:
                 logger.warning(f"Failed to load config from {config_path}: {e}")
         
         return None
+    
+    def _init_session(self) -> None:
+        """Initialize connection pool session for performance"""
+        self._session = requests.Session()
+        self._session.headers.update(self.headers)
+        
+        # Configure connection pooling
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=CONNECTION_POOL_SIZE,
+            pool_maxsize=CONNECTION_POOL_SIZE,
+            max_retries=CONNECTION_MAX_RETRIES
+        )
+        self._session.mount('https://', adapter)
+        self._session.mount('http://', adapter)
+        logger.debug(f"Connection pool initialized with {CONNECTION_POOL_SIZE} connections")
+    
+    def close(self) -> None:
+        """Close session and release connections"""
+        if self._session:
+            self._session.close()
+            self._session = None
+            logger.debug("Connection pool closed")
+    
+    def __enter__(self):
+        """Context manager entry"""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensures session is closed"""
+        self.close()
+        return False
     
     def _rate_limit(self) -> None:
         """Apply rate limiting between requests"""
@@ -568,14 +654,24 @@ class SevDeskClient:
         start_time = time.time()
         
         try:
-            response = requests.request(
-                method=method,
-                url=url,
-                headers=self.headers,
-                json=data,
-                params=params,
-                timeout=DEFAULT_TIMEOUT
-            )
+            # Use session for connection pooling (v2.3.0 performance improvement)
+            if self._session:
+                response = self._session.request(
+                    method=method,
+                    url=url,
+                    json=data,
+                    params=params,
+                    timeout=DEFAULT_TIMEOUT
+                )
+            else:
+                response = requests.request(
+                    method=method,
+                    url=url,
+                    headers=self.headers,
+                    json=data,
+                    params=params,
+                    timeout=DEFAULT_TIMEOUT
+                )
             response.raise_for_status()
             self.circuit_breaker.record_success()
             self._request_count += 1
@@ -1262,8 +1358,11 @@ class SevDeskClient:
         csv_content = output.getvalue()
         output.close()
         
+        # v2.3.0: Add UTF-8 BOM for Excel compatibility with German umlauts
+        csv_content = '\ufeff' + csv_content
+        
         if filename:
-            with open(filename, 'w', newline='', encoding='utf-8') as f:
+            with open(filename, 'w', newline='', encoding='utf-8-sig') as f:
                 f.write(csv_content)
             return filename
         
@@ -1314,15 +1413,19 @@ class SevDeskClient:
         csv_content = output.getvalue()
         output.close()
         
+        # v2.3.0: Add UTF-8 BOM for Excel compatibility with German umlauts
+        csv_content = '\ufeff' + csv_content
+        
         if filename:
-            with open(filename, 'w', newline='', encoding='utf-8') as f:
+            with open(filename, 'w', newline='', encoding='utf-8-sig') as f:
                 f.write(csv_content)
             return filename
         
         return csv_content
     
     def import_contacts_csv(self, csv_data: str, skip_header: bool = True,
-                            dry_run: bool = False) -> BatchResult:
+                            dry_run: bool = False,
+                            encoding: str = 'utf-8-sig') -> BatchResult:
         """
         Import contacts from CSV data
         
@@ -1435,6 +1538,213 @@ class SevDeskClient:
         if self.cache:
             self.cache.clear()
             logger.info("Cache cleared")
+    
+    # ==================== v2.3.0: DUNNING / MAHNUNGEN ====================
+    
+    def get_overdue_invoices(self, days_overdue: int = 1, 
+                             max_dunning_level: Optional[DunningLevel] = None) -> List[Dict]:
+        """
+        Get all overdue invoices with their dunning status
+        
+        Args:
+            days_overdue: Minimum days overdue (default: 1)
+            max_dunning_level: Only return invoices up to this dunning level
+        
+        Returns:
+            List of overdue invoice dicts with 'days_overdue' and 'current_dunning_level'
+        """
+        invoices = self.get_unpaid_invoices(days_overdue=days_overdue)
+        overdue = []
+        
+        for inv in invoices:
+            # Calculate days overdue from delivery/due date
+            due_date_str = inv.get('deliveryDate') or inv.get('invoiceDate')
+            if due_date_str:
+                try:
+                    due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+                    days = (datetime.now() - due_date).days
+                except ValueError:
+                    days = 0
+            else:
+                days = 0
+            
+            # Determine current dunning level from invoice
+            current_level = DunningLevel.REMINDER
+            reminder_sent = inv.get('reminderSent', False)
+            reminder_count = inv.get('reminderCount', 0)
+            
+            if reminder_count >= 3:
+                current_level = DunningLevel.FINAL
+            elif reminder_count >= 2:
+                current_level = DunningLevel.SECOND
+            elif reminder_count >= 1:
+                current_level = DunningLevel.FIRST
+            elif reminder_sent:
+                current_level = DunningLevel.REMINDER
+            
+            if max_dunning_level and current_level.value > max_dunning_level.value:
+                continue
+            
+            inv['days_overdue'] = days
+            inv['current_dunning_level'] = current_level
+            overdue.append(inv)
+        
+        # Sort by days overdue (most overdue first)
+        overdue.sort(key=lambda x: x['days_overdue'], reverse=True)
+        return overdue
+    
+    def create_dunning(self, invoice_id: str, 
+                       level: DunningLevel = DunningLevel.REMINDER,
+                       fee: Optional[float] = None,
+                       note: Optional[str] = None,
+                       due_date_days: int = 7) -> DunningResult:
+        """
+        Create a dunning/reminder for an overdue invoice
+        
+        Args:
+            invoice_id: The invoice to create dunning for
+            level: Dunning level (REMINDER, FIRST, SECOND, FINAL)
+            fee: Optional dunning fee to add
+            note: Optional note/message for the dunning
+            due_date_days: Days until payment is due (default: 7)
+        
+        Returns:
+            DunningResult with success status and details
+        """
+        # Get invoice details
+        invoice = self.get_invoice(invoice_id)
+        if 'error' in invoice:
+            return DunningResult(
+                invoice_id=invoice_id,
+                invoice_number="",
+                contact_name="",
+                amount_due=0,
+                days_overdue=0,
+                dunning_level=level,
+                success=False,
+                message=f"Invoice not found: {invoice['error']}"
+            )
+        
+        # Calculate due date
+        due_date = (datetime.now() + timedelta(days=due_date_days)).strftime('%Y-%m-%d')
+        
+        # Prepare reminder data for SevDesk API
+        reminder_data = {
+            "invoice": {"id": invoice_id, "objectName": "Invoice"},
+            "reminderLevel": level.value,
+            "reminderDate": datetime.now().strftime('%Y-%m-%d'),
+            "dueDate": due_date,
+        }
+        
+        if fee:
+            reminder_data["reminderCharge"] = fee
+        if note:
+            reminder_data["text"] = note
+        
+        # Send to API
+        response = self._request("POST", "/InvoiceReminder", data=reminder_data)
+        
+        contact = invoice.get('contact', {})
+        amount = float(invoice.get('sumGross', 0)) - float(invoice.get('paidAmount', 0))
+        
+        if 'error' in response:
+            return DunningResult(
+                invoice_id=invoice_id,
+                invoice_number=invoice.get('invoiceNumber', ''),
+                contact_name=contact.get('name', ''),
+                amount_due=amount,
+                days_overdue=0,
+                dunning_level=level,
+                success=False,
+                message=response['error']
+            )
+        
+        # Success
+        return DunningResult(
+            invoice_id=invoice_id,
+            invoice_number=invoice.get('invoiceNumber', ''),
+            contact_name=contact.get('name', ''),
+            amount_due=amount,
+            days_overdue=0,
+            dunning_level=level,
+            success=True,
+            message=f"Dunning created successfully (Level {level.name})",
+            reminder_date=reminder_data['reminderDate'],
+            reminder_id=response.get('id')
+        )
+    
+    def batch_create_dunnings(self, invoice_ids: List[str],
+                              level: DunningLevel = DunningLevel.REMINDER,
+                              fee: Optional[float] = None,
+                              note: Optional[str] = None) -> List[DunningResult]:
+        """
+        Batch create dunnings for multiple invoices
+        
+        Args:
+            invoice_ids: List of invoice IDs to create dunnings for
+            level: Dunning level for all invoices
+            fee: Optional dunning fee
+            note: Optional note/message
+        
+        Returns:
+            List of DunningResult for each invoice
+        """
+        results = []
+        
+        for invoice_id in invoice_ids:
+            result = self.create_dunning(invoice_id, level, fee, note)
+            results.append(result)
+            
+            # Rate limit between dunnings
+            time.sleep(0.2)
+        
+        return results
+    
+    def get_dunning_summary(self, days_overdue: int = 1) -> Dict:
+        """
+        Get summary of dunning status across all overdue invoices
+        
+        Args:
+            days_overdue: Minimum days overdue to include
+        
+        Returns:
+            Summary dict with counts, amounts, and recommendations
+        """
+        overdue = self.get_overdue_invoices(days_overdue=days_overdue)
+        
+        total_amount = sum(inv.get('sumGross', 0) for inv in overdue)
+        total_count = len(overdue)
+        
+        by_level = {level: [] for level in DunningLevel}
+        for inv in overdue:
+            level = inv.get('current_dunning_level', DunningLevel.REMINDER)
+            by_level[level].append(inv)
+        
+        summary = {
+            "total_overdue": total_count,
+            "total_amount": round(total_amount, 2),
+            "by_level": {
+                level.name: {
+                    "count": len(invoices),
+                    "amount": round(sum(i.get('sumGross', 0) for i in invoices), 2)
+                }
+                for level, invoices in by_level.items()
+            },
+            "recommendations": []
+        }
+        
+        # Generate recommendations
+        for level in [DunningLevel.REMINDER, DunningLevel.FIRST, DunningLevel.SECOND]:
+            invoices = by_level[level]
+            if invoices:
+                next_level = DunningLevel(level.value + 1)
+                summary["recommendations"].append({
+                    "action": f"Create {next_level.name} dunnings",
+                    "count": len(invoices),
+                    "invoices": [i.get('invoiceNumber') for i in invoices[:5]]
+                })
+        
+        return summary
 
 
 # ==================== CLI INTERFACE ====================
@@ -1585,6 +1895,35 @@ Examples:
     # stats command
     stats_parser = subparsers.add_parser('stats', help='Show statistics')
     stats_parser.add_argument('--clear-cache', action='store_true', help='Clear cache and show stats')
+    
+    # dunning commands (v2.3.0)
+    dunning_parser = subparsers.add_parser('dunning', help='List overdue invoices with dunning status')
+    dunning_parser.add_argument('--days', '-d', type=int, default=1, help='Minimum days overdue')
+    dunning_parser.add_argument('--level', '-l', type=int, choices=[1, 2, 3, 4], 
+                                help='Max dunning level to include')
+    
+    dunning_summary_parser = subparsers.add_parser('dunning-summary', 
+                                                   help='Show dunning summary and recommendations')
+    dunning_summary_parser.add_argument('--days', '-d', type=int, default=1, help='Minimum days overdue')
+    
+    create_dunning_parser = subparsers.add_parser('create-dunning', 
+                                                  help='Create dunning/reminder for invoice')
+    create_dunning_parser.add_argument('invoice_id', help='Invoice ID')
+    create_dunning_parser.add_argument('--level', '-l', type=int, default=1, 
+                                       choices=[1, 2, 3, 4],
+                                       help='Dunning level (1=Reminder, 2=First, 3=Second, 4=Final)')
+    create_dunning_parser.add_argument('--fee', '-f', type=float, help='Dunning fee amount')
+    create_dunning_parser.add_argument('--note', '-n', help='Note/message for dunning')
+    create_dunning_parser.add_argument('--due-days', type=int, default=7, 
+                                       help='Days until payment due')
+    
+    batch_dunning_parser = subparsers.add_parser('batch-dunning', 
+                                                 help='Create dunnings for multiple invoices')
+    batch_dunning_parser.add_argument('invoice_ids', help='Comma-separated invoice IDs')
+    batch_dunning_parser.add_argument('--level', '-l', type=int, default=1, 
+                                      choices=[1, 2, 3, 4],
+                                      help='Dunning level')
+    batch_dunning_parser.add_argument('--fee', '-f', type=float, help='Dunning fee amount')
     
     return parser
 
@@ -1892,6 +2231,106 @@ def handle_batch_update_invoices_command(client: SevDeskClient, args: argparse.N
     print(f"  Duration: {result.duration_ms:.0f}ms")
 
 
+# ==================== v2.3.0: DUNNING COMMAND HANDLERS ====================
+
+def handle_dunning_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle dunning command - list overdue invoices"""
+    max_level = DunningLevel(args.level) if args.level else None
+    overdue = client.get_overdue_invoices(days_overdue=args.days, max_dunning_level=max_level)
+    
+    total_amount = sum(inv.get('sumGross', 0) for inv in overdue)
+    
+    print(f"\n📋 {len(overdue)} überfällige Rechnungen ({args.days}+ Tage):")
+    print(f"   Gesamtbetrag: {total_amount:.2f} €\n")
+    
+    for inv in overdue[:20]:
+        level = inv.get('current_dunning_level', DunningLevel.REMINDER)
+        days = inv.get('days_overdue', 0)
+        contact = inv.get('contact', {})
+        amount = inv.get('sumGross', 0)
+        inv_num = inv.get('invoiceNumber', '---')
+        
+        level_emoji = {1: "📝", 2: "⚠️", 3: "🔔", 4: "🚨"}.get(level.value, "📝")
+        
+        print(f"  {level_emoji} {inv_num}")
+        print(f"     Kontakt: {contact.get('name', '---')}")
+        print(f"     Betrag: {amount:.2f} € | Überfällig: {days} Tage")
+        print(f"     Mahnstufe: {level.name}")
+        print()
+
+
+def handle_dunning_summary_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle dunning-summary command"""
+    summary = client.get_dunning_summary(days_overdue=args.days)
+    
+    print(f"\n📊 Mahnungs-Übersicht:\n")
+    print(f"  Überfällige Rechnungen: {summary['total_overdue']}")
+    print(f"  Gesamtbetrag: {summary['total_amount']:.2f} €\n")
+    
+    print("  Nach Mahnstufe:")
+    for level_name, data in summary['by_level'].items():
+        if data['count'] > 0:
+            print(f"    {level_name}: {data['count']} Rechnungen ({data['amount']:.2f} €)")
+    
+    if summary['recommendations']:
+        print(f"\n  Empfohlene Aktionen:")
+        for rec in summary['recommendations']:
+            print(f"    → {rec['action']}: {rec['count']} Rechnungen")
+            for inv_num in rec['invoices'][:3]:
+                print(f"       - {inv_num}")
+
+
+def handle_create_dunning_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle create-dunning command"""
+    level = DunningLevel(args.level)
+    
+    print(f"\n📝 Erstelle Mahnung (Stufe {level.name})...")
+    
+    result = client.create_dunning(
+        invoice_id=args.invoice_id,
+        level=level,
+        fee=args.fee,
+        note=args.note,
+        due_date_days=args.due_days
+    )
+    
+    if result.success:
+        print(f"✅ Mahnung erstellt:")
+        print(f"   Rechnung: {result.invoice_number}")
+        print(f"   Kontakt: {result.contact_name}")
+        print(f"   Betrag: {result.amount_due:.2f} €")
+        print(f"   Mahnstufe: {result.dunning_level.name}")
+    else:
+        print(f"❌ Fehler: {result.message}")
+        sys.exit(1)
+
+
+def handle_batch_dunning_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle batch-dunning command"""
+    invoice_ids = [id.strip() for id in args.invoice_ids.split(',')]
+    level = DunningLevel(args.level)
+    
+    print(f"\n🔄 Erstelle {len(invoice_ids)} Mahnungen (Stufe {level.name})...")
+    
+    results = client.batch_create_dunnings(
+        invoice_ids=invoice_ids,
+        level=level,
+        fee=args.fee
+    )
+    
+    successful = [r for r in results if r.success]
+    failed = [r for r in results if not r.success]
+    
+    print(f"✅ Batch-Mahnung abgeschlossen:")
+    print(f"   Erfolgreich: {len(successful)}/{len(results)}")
+    print(f"   Fehlgeschlagen: {len(failed)}")
+    
+    if failed:
+        print(f"\n   Fehler:")
+        for r in failed[:5]:
+            print(f"     - {r.invoice_number}: {r.message}")
+
+
 def main():
     """Main CLI entry point"""
     parser = create_parser()
@@ -1938,6 +2377,11 @@ def main():
         'queue': handle_queue_command,
         'queue-process': handle_queue_process_command,
         'queue-clear': handle_queue_clear_command,
+        # v2.3.0: Dunning commands
+        'dunning': handle_dunning_command,
+        'dunning-summary': handle_dunning_summary_command,
+        'create-dunning': handle_create_dunning_command,
+        'batch-dunning': handle_batch_dunning_command,
     }
     
     handler = command_handlers.get(args.command)
