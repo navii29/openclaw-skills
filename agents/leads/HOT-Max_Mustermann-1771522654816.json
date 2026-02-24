@@ -1,0 +1,32 @@
+{
+  "url": "https://linkedin.com/in/cto-techstart",
+  "name": "Max Mustermann",
+  "headline": "CEO & Co-Founder @ TechStart GmbH | SaaS | AI Automation",
+  "currentTitle": "CEO & Co-Founder",
+  "company": "TechStart GmbH",
+  "location": "Berlin, Germany",
+  "about": "Bauen die Zukunft der Workflow-Automation. Vorher 5 Jahre bei McKinsey Digital.",
+  "extractedAt": "2026-02-19T17:37:34.816Z",
+  "score": 100,
+  "tier": "HOT",
+  "signals": [
+    "Title: CEO (+25)",
+    "Title: Founder (+25)",
+    "Title: Co-Founder (+25)",
+    "Industry: SaaS (+15)",
+    "Industry: Tech (+10)",
+    "Industry: AI (+20)",
+    "Industry: Automation (+20)",
+    "Industry: Digital (+10)",
+    "Decision maker (+10)",
+    "AI/Automation interest (+15)"
+  ],
+  "outreach": {
+    "linkedin": "Max, gesehen dass Sie bei TechStart GmbH CEO & Co-Founder sind. Wir haben gerade eine Automation für ein SaaS-Unternehmen gebaut, die 40% Zeitersparnis bringt. Passt das zu Ihren aktuellen Prioritäten?",
+    "email": null,
+    "generatedAt": "2026-02-19T17:37:34.816Z"
+  },
+  "status": "NEW",
+  "contactedAt": null,
+  "notes": []
+}

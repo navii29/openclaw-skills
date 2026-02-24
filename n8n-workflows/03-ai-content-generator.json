@@ -1,0 +1,161 @@
+{
+  "name": "🤖 AI Content Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "generate-content",
+        "responseMode": "responseNode"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "generate-content",
+      "name": "Webhook: Content Request"
+    },
+    {
+      "parameters": {
+        "options": {},
+        "prompt": "=Du bist ein Experte für LinkedIn-Content im B2B-Tech-Bereich.\n\nErstelle einen LinkedIn-Post zum Thema: {{ $json.topic }}\n\nZielgruppe: {{ $json.audience || 'Tech-Entscheider, Gründer, CEOs' }}\n\nStil: {{ $json.tone || 'professionell, authentisch, mit Meinung' }}\n\nStruktur:\n1. Ein Hook der Aufmerksamkeit erzeugt\n2. Ein persönliches Learning oder eine kontroverse Meinung\n3. Konkrete Tipps oder Insights\n4. Call-to-Action oder Frage an die Community\n\nLänge: 150-200 Wörter\n\nVerwende Zeilenumbrüche für bessere Lesbarkeit. Keine Emojis übermäßig verwenden."
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.5,
+      "position": [450, 300],
+      "name": "Generate LinkedIn Post",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "prompt": "=Basierend auf diesem LinkedIn-Post, erstelle:\n\n1. Eine Twitter/X Version (max 280 Zeichen)\n2. 3-5 passende Hashtags\n3. Ein kurzer Hook für Instagram (max 2 Sätze)\n\nOriginal Post:\n{{ $json.content }}"
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.5,
+      "position": [650, 300],
+      "name": "Generate Variations",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const linkedinPost = $input.all()[0].json.content;\nconst variations = $input.all()[1].json.content;\n\nreturn [{\n  json: {\n    linkedin: linkedinPost,\n    variations: variations,\n    generatedAt: new Date().toISOString(),\n    topic: $('Webhook: Content Request').item.json.topic\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "name": "Combine Output"
+    },
+    {
+      "parameters": {
+        "tableId": "Content Calendar",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "Content", "fieldValue": "={{ $json.linkedin }}" },
+            { "fieldId": "Variations", "fieldValue": "={{ $json.variations }}" },
+            { "fieldId": "Topic", "fieldValue": "={{ $json.topic }}" },
+            { "fieldId": "Status", "fieldValue": "Draft" },
+            { "fieldId": "Created", "fieldValue": "={{ $json.generatedAt }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "name": "Save to Content Calendar",
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ linkedin: $json.linkedin, variations: $json.variations, savedToNotion: true }) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "name": "Return Content"
+    }
+  ],
+  "connections": {
+    "Webhook: Content Request": {
+      "main": [
+        [
+          {
+            "node": "Generate LinkedIn Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate LinkedIn Post": {
+      "main": [
+        [
+          {
+            "node": "Generate Variations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Variations": {
+      "main": [
+        [
+          {
+            "node": "Combine Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Output": {
+      "main": [
+        [
+          {
+            "node": "Save to Content Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Content Calendar": {
+      "main": [
+        [
+          {
+            "node": "Return Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "AI",
+      "id": "tag-ai"
+    },
+    {
+      "name": "Content",
+      "id": "tag-content"
+    }
+  ]
+}

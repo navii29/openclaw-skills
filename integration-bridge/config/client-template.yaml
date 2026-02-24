@@ -1,0 +1,137 @@
+# Client Configuration Template
+# Kopiere diese Datei nach config/clients/[client-name].yaml
+
+client_id: "acme-corp"  # Eindeutige ID für den Kunden
+enabled: true
+
+# HubSpot Verbindung
+hubspot:
+  portal_id: "1234567"
+  # Token wird über Environment Variable injiziert: HUBSPOT_TOKEN_ACME_CORP
+  
+# Trigger: Wann soll die Anreicherung laufen?
+triggers:
+  - event: "deal.created"
+    # Optional: Filtere Deals nach Kriterien
+    filters:
+      min_deal_value: 5000  # Nur Deals ab €5.000
+      pipeline: "default"   # Optional: Spezifische Pipeline
+      dealstage: "appointmentscheduled"  # Optional: Spezifische Stage
+
+  - event: "deal.propertyChange"
+    filters:
+      property: "dealstage"
+      from: "appointmentscheduled"
+      to: "qualifiedtobuy"
+
+# OpenClaw Agent Konfiguration
+openclaw:
+  agent_id: "research-agent"  # Welcher Agent soll recherchieren?
+  timeout_seconds: 120
+  # Optional: Custom Prompt-Override
+  prompt_template: |
+    Research company: {{company}}
+    Contact: {{contact_email}}
+    Deal Value: €{{deal_value}}
+    
+    Return JSON:
+    {
+      "lead_score": 0-100,
+      "company_size": "1-10|11-50|51-200|201-1000|1000+",
+      "tech_signals": ["tech1", "tech2"],
+      "outreach_angle": "string",
+      "priority": "LOW|MEDIUM|HIGH"
+    }
+
+# Ausgabe: Was soll in HubSpot geschrieben werden?
+output:
+  properties:
+    - name: "lead_score"
+      source: "research.lead_score"
+      format: "number"
+    
+    - name: "company_size"
+      source: "research.company_size"
+      format: "string"
+    
+    - name: "ai_research_notes"
+      source: "research.outreach_angle"
+      format: "string"
+    
+    - name: "ai_priority"
+      source: "research.priority"
+      format: "string"
+    
+    - name: "ai_enriched_at"
+      source: "processed_at"
+      format: "datetime"
+    
+    - name: "ai_tech_signals"
+      source: "research.tech_signals"
+      format: "json"
+
+# Benachrichtigungen
+notifications:
+  slack:
+    enabled: true
+    channel: "#sales-alerts"
+    # Nur bei bestimmten Bedingungen
+    conditions:
+      - "research.priority == HIGH"
+      - "research.lead_score >= 80"
+    message_template: |
+      🔥 HIGH PRIORITY DEAL
+      
+      Company: {{company}}
+      Deal Value: €{{deal_value}}
+      Lead Score: {{research.lead_score}}/100
+      Size: {{research.company_size}}
+      
+      💡 {{research.outreach_angle}}
+      
+      🔗 {{hubspot_deal_url}}
+
+  email:
+    enabled: false
+    # Optional: Email-Benachrichtigungen
+    recipients:
+      - "sales@acme-corp.com"
+    conditions:
+      - "research.priority == HIGH"
+
+# Automatische Aktionen
+automations:
+  # Task für Account Executive erstellen?
+  create_task:
+    enabled: true
+    conditions:
+      - "research.priority == HIGH"
+      - "deal_value > 10000"
+    task_template:
+      subject: "🔥 High Priority Lead: {{company}}"
+      body: |
+        Lead Score: {{research.lead_score}}/100
+        Company Size: {{research.company_size}}
+        
+        Research Notes:
+        {{research.outreach_angle}}
+        
+        Tech Stack: {{research.tech_signals}}
+      due_days: 1  # Task fällig in 1 Tag
+      assigned_to: "owner_email"  # Dynamisch: Deal Owner
+
+  # Deal Stage automatisch ändern?
+  update_stage:
+    enabled: false
+    # conditions:
+    #   - "research.lead_score >= 90"
+    # target_stage: "qualifiedtobuy"
+
+# Logging & Monitoring
+logging:
+  # Alle Enrichments loggen?
+  log_all: true
+  # Nur Fehler loggen?
+  log_errors_only: false
+  # Retention in Tagen
+  retention_days: 90

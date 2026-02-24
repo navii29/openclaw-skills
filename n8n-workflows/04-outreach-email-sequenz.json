@@ -1,0 +1,201 @@
+{
+  "name": "📧 Outreach Email Sequenz",
+  "nodes": [
+    {
+      "parameters": {
+        "tableId": "LinkedIn Leads",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute",
+              "interval": 60
+            }
+          ]
+        },
+        "filters": {
+          "filters": [
+            {
+              "property": "Status",
+              "condition": "equals",
+              "value": "NEW"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.notionTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "name": "New Lead Trigger",
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\n// Email Templates für verschiedene Tiers\nconst templates = {\n  '🔥 HOT': {\n    subject: 'Schnelle Frage zu {{company}} - AI Automation',\n    body: `Hallo {{name}},\\n\\nich habe gesehen, dass Sie als {{title}} bei {{company}} die operative Effizienz vorantreiben.\\n\\nWir haben gerade eine Automation für ein Tech-Unternehmen ähnlicher Größe gebaut:\\n• 40% Zeitersparnis im Sales-Prozess\\n• Automatische Lead-Qualifizierung\\n• CRM-Integration ohne manuelle Doppelarbeit\\n\\nPasst das zu Ihren aktuellen Prioritäten?\\n\\nIch hätte gerne 15 Minuten mit Ihnen über Ihre größten Zeitfresser gesprochen.\\n\\nBeste Grüße,\\n[Your Name]`\n  },\n  '⚡ WARM': {\n    subject: 'AI-Automation für {{company}} - Wie skalieren Sie aktuell?',\n    body: `Hallo {{name}},\\n\\nIhr Background bei {{company}} ist interessant - besonders im {{industry}}-Bereich.\\n\\nWir spezialisieren uns auf AI-Automation für wachsende Teams. Eine Frage:\\nWelche wiederkehrenden Tasks kosten Ihr Team aktuell die meiste Zeit?\\n\\nIch würde gerne hören, wo Sie Reibungsverluste sehen - vielleicht haben wir dafür bereits eine Lösung.\\n\\nBeste Grüße,\\n[Your Name]`\n  },\n  '🧊 COLD': {\n    subject: 'Spannende Entwicklung bei {{company}}',\n    body: `Hallo {{name}},\\n\\nich folge {{company}} schon länger und finde die Entwicklung im {{industry}}-Bereich spannend.\\n\\nWir helfen Unternehmen dieser Größe, durch Automation schneller zu wachsen - ohne zusätzliche Headcounts.\\n\\nGibt es bei Ihnen aktuell Prozesse, die Sie gerne automatisieren würden?\\n\\nBeste Grüße,\\n[Your Name]`\n  }\n};\n\nconst tier = lead.properties.Tier?.select?.name || '🧊 COLD';\nconst template = templates[tier];\n\n// Replace placeholders\nconst name = lead.properties.Name?.title?.[0]?.plain_text || 'there';\nconst company = lead.properties.Firma?.rich_text?.[0]?.plain_text || 'Ihrem Unternehmen';\nconst title = lead.properties.Titel?.rich_text?.[0]?.plain_text || 'Manager';\n\nconst emailSubject = template.subject\n  .replace('{{company}}', company)\n  .replace('{{name}}', name);\n\nconst emailBody = template.body\n  .replace(/{{name}}/g, name.split(' ')[0])\n  .replace(/{{company}}/g, company)\n  .replace(/{{title}}/g, title)\n  .replace(/{{industry}}/g, 'Tech');\n\nreturn [{\n  json: {\n    leadId: lead.id,\n    name,\n    company,\n    email: lead.properties.Email?.email || '',\n    subject: emailSubject,\n    body: emailBody,\n    tier\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "name": "Prepare Email"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "email-check",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "name": "Has Email?"
+    },
+    {
+      "parameters": {
+        "toRecipients": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "text": "={{ $json.body }}",
+        "options": {
+          "sendRepliesTo": "kontakt@navii-automation.de"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "name": "Send Email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "LinkedIn Leads",
+        "id": "={{ $json.leadId }}",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "Status", "fieldValue": "CONTACTED" },
+            { "fieldId": "Contacted At", "fieldValue": "={{ $now }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1050, 200],
+      "name": "Update Lead Status",
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#leads",
+        "text": "📧 *Outreach Email Sent*\n\nTo: {{ $json.name }} @ {{ $json.company }}\nTier: {{ $json.tier }}\nStatus: Updated to CONTACTED"
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 200],
+      "name": "Slack Notification",
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Lead Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email": {
+      "main": [
+        [
+          {
+            "node": "Has Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Email?": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Update Lead Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead Status": {
+      "main": [
+        [
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "Email",
+      "id": "tag-email"
+    },
+    {
+      "name": "Automation",
+      "id": "tag-automation"
+    }
+  ]
+}

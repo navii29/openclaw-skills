@@ -1,0 +1,170 @@
+<!-- Shopify Page Template: Navii Automation Landing Page -->
+<!-- Erstelle eine neue Page in Shopify und füge diesen HTML-Code ein -->
+
+<style>
+  .navii-section { padding: 80px 20px; max-width: 1200px; margin: 0 auto; }
+  .navii-hero { text-align: center; background: linear-gradient(180deg, #f0f9ff 0%, #fff 100%); padding: 120px 20px 80px; }
+  .navii-hero h1 { font-size: 48px; font-weight: 800; margin-bottom: 20px; color: #0f172a; }
+  .navii-hero h1 span { color: #0066cc; }
+  .navii-hero p { font-size: 20px; color: #64748b; max-width: 600px; margin: 0 auto 30px; }
+  .navii-btn { display: inline-block; background: #0066cc; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 10px; }
+  .navii-btn:hover { background: #0052a3; }
+  .navii-btn-outline { background: transparent; color: #0f172a; border: 2px solid #e2e8f0; }
+  .navii-stats { background: #0f172a; color: white; padding: 60px 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; text-align: center; }
+  .navii-stat-value { font-size: 36px; font-weight: 800; }
+  .navii-stat-label { color: #94a3b8; font-size: 14px; }
+  .navii-problems { background: #fff; }
+  .navii-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 40px; }
+  .navii-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; text-align: center; }
+  .navii-card:hover { border-color: #0066cc; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+  .navii-icon { font-size: 48px; margin-bottom: 16px; }
+  .navii-services { background: #f8fafc; }
+  .navii-service-card { background: white; border-radius: 16px; padding: 40px; text-align: center; border: 1px solid #e2e8f0; }
+  .navii-service-card.featured { border-color: #0066cc; box-shadow: 0 0 0 2px rgba(0,102,204,0.1); }
+  .navii-badge { background: #0066cc; color: white; font-size: 12px; padding: 4px 12px; border-radius: 4px; display: inline-block; margin-bottom: 16px; }
+  .navii-price { font-size: 36px; font-weight: 800; margin: 20px 0; }
+  .navii-features { list-style: none; text-align: left; margin: 24px 0; }
+  .navii-features li { padding: 8px 0; }
+  .navii-features li:before { content: "✓"; color: #10b981; margin-right: 10px; }
+  .navii-process { display: flex; justify-content: space-between; gap: 40px; text-align: center; }
+  .navii-step { flex: 1; }
+  .navii-step-number { width: 48px; height: 48px; background: #0066cc; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; margin: 0 auto 16px; }
+  .navii-cta { background: #0f172a; color: white; text-align: center; padding: 100px 20px; }
+  .navii-cta h2 { font-size: 36px; margin-bottom: 20px; }
+  .navii-cta p { color: #94a3b8; margin-bottom: 30px; }
+  .navii-footer { background: #020617; color: #94a3b8; padding: 40px 20px; text-align: center; }
+  @media (max-width: 768px) {
+    .navii-grid-3 { grid-template-columns: 1fr; }
+    .navii-stats { grid-template-columns: repeat(2, 1fr); }
+    .navii-process { flex-direction: column; }
+    .navii-hero h1 { font-size: 32px; }
+  }
+</style>
+
+<div class="navii-hero">
+  <h1>Wir bauen <span>AI-Agenten</span>,<br>die Ihre repetitive Arbeit übernehmen</h1>
+  <p>Operative OpenClaw-Agenten für E-Commerce. Keine Beratung, keine Workshops – wir liefern funktionierende Systeme, die von Tag 1 produktiv arbeiten.</p>
+  <a href="#services" class="navii-btn">Angebot ansehen</a>
+  <a href="mailto:hello@navii-automation.com" class="navii-btn navii-btn-outline">Kostenlosen Call buchen</a>
+</div>
+
+<div class="navii-stats">
+  <div><div class="navii-stat-value">15-20h</div><div class="navii-stat-label">Zeitersparnis/Woche</div></div>
+  <div><div class="navii-stat-value">10 Tage</div><div class="navii-stat-label">Bauzeit</div></div>
+  <div><div class="navii-stat-value">€4.500</div><div class="navii-stat-label">Fixpreis ab</div></div>
+  <div><div class="navii-stat-value">5-6 Mo.</div><div class="navii-stat-label">Amortisation</div></div>
+</div>
+
+<div class="navii-section navii-problems">
+  <h2 style="text-align: center; font-size: 36px; margin-bottom: 16px;">Das Problem</h2>
+  <p style="text-align: center; color: #64748b; max-width: 600px; margin: 0 auto 40px;">Ihr Team arbeitet für die Prozesse, nicht die Prozesse für Sie.</p>
+  
+  <div class="navii-grid-3">
+    <div class="navii-card">
+      <div class="navii-icon">📦</div>
+      <h3>Retouren-Chaos</h3>
+      <p style="color: #64748b;">5-7 manuelle Handgriffe pro Retoure. 15-20 Stunden pro Woche vergeudet.</p>
+    </div>
+    <div class="navii-card">
+      <div class="navii-icon">🚚</div>
+      <h3>Lieferanten-Overhead</h3>
+      <p style="color: #64748b;">Keine Übersicht, keine Automation, ständiges Nachhaken per E-Mail.</p>
+    </div>
+    <div class="navii-card">
+      <div class="navii-icon">📊</div>
+      <h3>Inventar-Blindflug</div>
+      <p style="color: #64748b;">Warnungen zu spät, Nachbestellungen vergessen, Kapital gebunden.</p>
+    </div>
+  </div>
+</div>
+
+<div class="navii-section navii-services" id="services">
+  <h2 style="text-align: center; font-size: 36px; margin-bottom: 16px;">Operative Agenten, die 24/7 arbeiten</h2>
+  <p style="text-align: center; color: #64748b;">Fixpreis • 10 Tage Bauzeit • Funktioniert oder Geld zurück</p>
+  
+  <div class="navii-grid-3" style="margin-top: 40px;">
+    <div class="navii-service-card featured">
+      <div class="navii-badge">BESTSELLER</div>
+      <div class="navii-icon">📦</div>
+      <h3>Retouren-Agent</h3>
+      <p style="color: #64748b;">Automatisiert die komplette Retouren-Abwicklung.</p>
+      <ul class="navii-features">
+        <li>E-Mail-Monitoring & Erkennung</li>
+        <li>Daten-Extraktion</li>
+        <li>Status-Tracking</li>
+        <li>Automatische Kunden-Kommunikation</li>
+        <li>SAP/Shopware/Plenty Integration</li>
+      </ul>
+      <div class="navii-price">€4.500</div>
+      <a href="mailto:hello@navii-automation.com?subject=Retouren-Agent%20anfragen" class="navii-btn" style="width: 100%;">Jetzt anfragen</a>
+    </div>
+    
+    <div class="navii-service-card">
+      <div class="navii-icon">🚚</div>
+      <h3>Lieferanten-Agent</h3>
+      <p style="color: #64748b;">Überwacht Bestellungen und verfolgt Sendungen.</p>
+      <ul class="navii-features">
+        <li>Bestell-Monitoring</li>
+        <li>Sendungsverfolgung</li>
+        <li>Termin-Reminder</li>
+        <li>Kommunikations-Doku</li>
+        <li>Performance-Reports</li>
+      </ul>
+      <div class="navii-price">€5.500</div>
+      <a href="mailto:hello@navii-automation.com?subject=Lieferanten-Agent%20anfragen" class="navii-btn navii-btn-outline" style="width: 100%;">Mehr erfahren</a>
+    </div>
+    
+    <div class="navii-service-card">
+      <div class="navii-icon">📊</div>
+      <h3>Inventar-Agent</h3>
+      <p style="color: #64748b;">Überwacht Bestände in Echtzeit.</p>
+      <ul class="navii-features">
+        <li>Echtzeit-Bestandsüberwachung</li>
+        <li>Intelligente Warnungen</li>
+        <li>Automatische Nachbestellung</li>
+        <li>Überbestands-Reports</li>
+        <li>Dashboard & Alerts</li>
+      </ul>
+      <div class="navii-price">€3.500</div>
+      <a href="mailto:hello@navii-automation.com?subject=Inventar-Agent%20anfragen" class="navii-btn navii-btn-outline" style="width: 100%;">Mehr erfahren</a>
+    </div>
+  </div>
+</div>
+
+<div class="navii-section">
+  <h2 style="text-align: center; font-size: 36px; margin-bottom: 40px;">So funktioniert's</h2>
+  <div class="navii-process">
+    <div class="navii-step">
+      <div class="navii-step-number">1</div>
+      <h4>Kickoff</h4>
+      <p style="color: #64748b; font-size: 14px;">30min Call, Prozess-Besprechung, Zieldefinition</p>
+    </div>
+    <div class="navii-step">
+      <div class="navii-step-number">2</div>
+      <h4>Setup</h4>
+      <p style="color: #64748b; font-size: 14px;">System-Integration, Konfiguration, Testläufe</p>
+    </div>
+    <div class="navii-step">
+      <div class="navii-step-number">3</div>
+      <h4>Pilot</h4>
+      <p style="color: #64748b; font-size: 14px;">Test mit echten Daten, Feinschliff, Feedback</p>
+    </div>
+    <div class="navii-step">
+      <div class="navii-step-number">4</div>
+      <h4>Go-Live</h4>
+      <p style="color: #64748b; font-size: 14px;">Produktivbetrieb, Übergabe, 30 Tage Support</p>
+    </div>
+  </div>
+</div>
+
+<div class="navii-cta">
+  <h2>Bereit, 15+ Stunden pro Woche zurückzugewinnen?</h2>
+  <p>Kostenloser 15-minütiger Call. Wir schauen uns Ihre Prozesse an.</p>
+  <a href="mailto:hello@navii-automation.com?subject=Kostenloser%20Beratungscall" class="navii-btn" style="background: white; color: #0f172a;">Jetzt Termin vereinbaren</a>
+</div>
+
+<div class="navii-footer">
+  <p><strong style="color: white;">Navii Automation</strong> – Operative AI-Agenten für E-Commerce</p>
+  <p><a href="mailto:hello@navii-automation.com" style="color: #0066cc;">hello@navii-automation.com</a></p>
+  <p style="font-size: 12px; margin-top: 20px;">© 2025 Navii Automation. Alle Rechte vorbehalten.</p>
+</div>

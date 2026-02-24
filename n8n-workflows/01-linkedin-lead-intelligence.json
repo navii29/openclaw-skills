@@ -1,0 +1,230 @@
+{
+  "name": "🔗 LinkedIn Lead Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "linkedin-lead",
+        "responseMode": "responseNode"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "linkedin-lead",
+      "name": "Webhook: LinkedIn Profile"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lead Scoring Engine\nconst profile = $input.first().json;\n\nconst SCORING = {\n  titleKeywords: {\n    'CEO': 25, 'Founder': 25, 'Co-Founder': 25, 'Geschäftsführer': 25,\n    'CTO': 20, 'COO': 20, 'Head of': 15, 'Director': 15\n  },\n  companyKeywords: {\n    'SaaS': 15, 'Software': 10, 'Tech': 10, 'AI': 20, 'Automation': 20\n  }\n};\n\nlet score = 0;\nconst signals = [];\nconst text = `${profile.headline} ${profile.title} ${profile.company}`.toLowerCase();\n\n// Title Scoring\nfor (const [keyword, points] of Object.entries(SCORING.titleKeywords)) {\n  if (text.includes(keyword.toLowerCase())) {\n    score += points;\n    signals.push(`Title: ${keyword} (+${points})`);\n  }\n}\n\n// Company Scoring\nfor (const [keyword, points] of Object.entries(SCORING.companyKeywords)) {\n  if (text.includes(keyword.toLowerCase())) {\n    score += points;\n    signals.push(`Industry: ${keyword} (+${points})`);\n  }\n}\n\n// Decision maker bonus\nif (text.includes('founder') || text.includes('ceo') || text.includes('geschäftsführer')) {\n  score += 10;\n  signals.push('Decision maker (+10)');\n}\n\n// Cap at 100\nscore = Math.min(score, 100);\n\n// Determine Tier\nlet tier = score >= 80 ? '🔥 HOT' : score >= 60 ? '⚡ WARM' : '🧊 COLD';\n\nreturn [{\n  json: {\n    ...profile,\n    score,\n    tier,\n    signals,\n    status: 'NEW',\n    processedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "name": "Lead Scoring Engine"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate personalized outreach\nconst lead = $input.first().json;\n\nconst templates = {\n  '🔥 HOT': [\n    `Hi ${lead.name.split(' ')[0]}, als ${lead.title} bei ${lead.company} interessieren Sie sich sicher für operative Effizienz. Wir helfen Tech-Führungskräften, 10+ Stunden/Woche durch AI-Automation zu sparen. Interesse an einem 15-minütigen Austausch?`,\n    `${lead.name.split(' ')[0]}, gesehen dass Sie bei ${lead.company} ${lead.title} sind. Wir haben gerade eine Automation für ein SaaS-Unternehmen gebaut, die 40% Zeitersparnis bringt. Passt das zu Ihren aktuellen Prioritäten?`\n  ],\n  '⚡ WARM': [\n    `Hallo ${lead.name.split(' ')[0]}, Ihr Background bei ${lead.company} ist interessant. Wir spezialisieren uns auf AI-Automation für Tech-Unternehmen. Gibt es Prozesse, die Sie gerade optimieren möchten?`\n  ],\n  '🧊 COLD': [\n    `Hi ${lead.name.split(' ')[0]}, ich folge ${lead.company} schon länger. Spannende Entwicklung. Wir helfen Unternehmen dieser Größe bei der Prozess-Automation.`\n  ]\n};\n\nconst tierTemplates = templates[lead.tier];\nconst outreach = tierTemplates[Math.floor(Math.random() * tierTemplates.length)];\n\nreturn [{\n  json: {\n    ...lead,\n    outreachLinkedIn: outreach\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "name": "Generate Outreach"
+    },
+    {
+      "parameters": {
+        "tableId": "LinkedIn Leads",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "Name", "fieldValue": "={{ $json.name }}" },
+            { "fieldId": "Firma", "fieldValue": "={{ $json.company }}" },
+            { "fieldId": "Titel", "fieldValue": "={{ $json.title }}" },
+            { "fieldId": "Score", "fieldValue": "={{ $json.score }}" },
+            { "fieldId": "Tier", "fieldValue": "={{ $json.tier }}" },
+            { "fieldId": "Status", "fieldValue": "NEW" },
+            { "fieldId": "Location", "fieldValue": "={{ $json.location }}" },
+            { "fieldId": "LinkedIn", "fieldValue": "={{ $json.url }}" },
+            { "fieldId": "Outreach", "fieldValue": "={{ $json.outreachLinkedIn }}" },
+            { "fieldId": "Signals", "fieldValue": "={{ $json.signals.join(', ') }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "name": "Save to Notion",
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "tier-check",
+              "leftValue": "={{ $json.tier }}",
+              "rightValue": "🔥 HOT",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "name": "Is HOT Lead?"
+    },
+    {
+      "parameters": {
+        "channel": "#leads",
+        "text": "🚨 *HOT LEAD DETECTED*",
+        "blocksUi": {
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*{{ $json.name }}* @ {{ $json.company }}\n• Title: {{ $json.title }}\n• Score: {{ $json.score }}/100\n• Location: {{ $json.location }}"
+              }
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "View LinkedIn"
+                  },
+                  "url": "={{ $json.url }}"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 200],
+      "name": "Slack Alert",
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, lead: $json }) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "name": "Return Response"
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "LinkedIn",
+      "id": "tag-linkedin"
+    },
+    {
+      "name": "Lead Gen",
+      "id": "tag-leadgen"
+    }
+  ],
+  "connections": {
+    "Webhook: LinkedIn Profile": {
+      "main": [
+        [
+          {
+            "node": "Lead Scoring Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Scoring Engine": {
+      "main": [
+        [
+          {
+            "node": "Generate Outreach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Outreach": {
+      "main": [
+        [
+          {
+            "node": "Save to Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Notion": {
+      "main": [
+        [
+          {
+            "node": "Is HOT Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is HOT Lead?": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

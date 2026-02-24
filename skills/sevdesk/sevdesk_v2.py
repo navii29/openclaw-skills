@@ -3,17 +3,25 @@
 SevDesk Skill - German Accounting Automation
 Handles invoices, contacts, vouchers, and banking via SevDesk API
 
+Improvements in v2.2:
+- **NEW: Batch operations** - Bulk create/update contacts and invoices
+- **NEW: Health check** - API connectivity monitoring
+- **NEW: Webhook support** - Register and verify webhooks
+- **NEW: CSV/Excel export/import** - Data portability
+- **NEW: Async batch processing** - Parallel API calls with concurrency control
+- **NEW: Operation queue** - Offline operation buffering
+
 Improvements in v2.1:
 - Structured logging
 - Retry logic with exponential backoff
 - Pagination support
 - Input validation
 - Circuit breaker pattern
-- **NEW: Proper CLI with argparse**
-- **NEW: TTL-based caching**
-- **NEW: Enums for status codes**
-- **NEW: Response metadata tracking**
-- **NEW: Config file support**
+- Proper CLI with argparse
+- TTL-based caching
+- Enums for status codes
+- Response metadata tracking
+- Config file support
 """
 
 import os
@@ -23,12 +31,19 @@ import time
 import logging
 import argparse
 import requests
+import csv
+import io
+import hashlib
+import hmac
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any, Callable, TypeVar, Generic, Tuple
+from typing import Optional, Dict, List, Any, Callable, TypeVar, Generic, Tuple, Union
 from functools import wraps
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from pathlib import Path
+from collections import deque
 
 # Configure logging
 logging.basicConfig(
@@ -39,7 +54,9 @@ logger = logging.getLogger('sevdesk')
 
 T = TypeVar('T')
 
-# ==================== CONSTANTS & ENUMS ====================
+# ==================== VERSION & CONSTANTS ====================
+
+VERSION = "2.2.0"
 
 class InvoiceStatus(IntEnum):
     """Invoice status codes"""
@@ -69,6 +86,18 @@ class VoucherStatus(IntEnum):
     PARTIAL = 750
     PAID = 1000
 
+class WebhookEvent(str, Enum):
+    """SevDesk webhook event types"""
+    CONTACT_CREATED = "ContactCreate"
+    CONTACT_UPDATED = "ContactUpdate"
+    CONTACT_DELETED = "ContactDelete"
+    INVOICE_CREATED = "InvoiceCreate"
+    INVOICE_UPDATED = "InvoiceUpdate"
+    INVOICE_DELETED = "InvoiceDelete"
+    VOUCHER_CREATED = "VoucherCreate"
+    VOUCHER_UPDATED = "VoucherUpdate"
+    TRANSACTION_CREATED = "CheckAccountTransactionCreate"
+
 # API Configuration
 BASE_URL = "https://my.sevdesk.de/api/v1"
 API_TOKEN = os.environ.get("SEVDESK_API_TOKEN", "")
@@ -76,6 +105,7 @@ DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_DELAY = 1.0
 DEFAULT_MAX_RETRIES = 3
 RATE_LIMIT_REQUESTS_PER_SECOND = 10
+DEFAULT_BATCH_CONCURRENCY = 5  # Max parallel batch operations
 
 
 class CircuitState(Enum):
@@ -118,10 +148,160 @@ class CircuitBreaker:
 
 
 @dataclass
-class CacheEntry:
-    """Cache entry with TTL"""
-    data: Any
-    expires_at: float
+class BatchResult:
+    """Result of a batch operation"""
+    successful: List[Dict] = field(default_factory=list)
+    failed: List[Dict] = field(default_factory=list)
+    total: int = 0
+    duration_ms: float = 0.0
+    
+    @property
+    def success_count(self) -> int:
+        return len(self.successful)
+    
+    @property
+    def failure_count(self) -> int:
+        return len(self.failed)
+    
+    @property
+    def success_rate(self) -> float:
+        if self.total == 0:
+            return 0.0
+        return (self.success_count / self.total) * 100
+
+
+@dataclass
+class HealthStatus:
+    """API health check status"""
+    healthy: bool
+    response_time_ms: float
+    api_version: Optional[str] = None
+    message: str = ""
+    timestamp: datetime = field(default_factory=datetime.now)
+    
+    def to_dict(self) -> Dict:
+        return {
+            "healthy": self.healthy,
+            "response_time_ms": round(self.response_time_ms, 2),
+            "api_version": self.api_version,
+            "message": self.message,
+            "timestamp": self.timestamp.isoformat()
+        }
+
+
+class WebhookHandler:
+    """Handle SevDesk webhook verification and processing"""
+    
+    def __init__(self, secret: Optional[str] = None):
+        self.secret = secret
+        self._handlers: Dict[str, List[Callable]] = {}
+    
+    def register_handler(self, event: WebhookEvent, handler: Callable) -> None:
+        """Register a handler for a specific webhook event"""
+        if event not in self._handlers:
+            self._handlers[event] = []
+        self._handlers[event].append(handler)
+    
+    def verify_signature(self, payload: bytes, signature: str) -> bool:
+        """Verify webhook signature if secret is configured"""
+        if not self.secret:
+            return True  # No secret configured, accept all
+        
+        expected = hmac.new(
+            self.secret.encode(),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(expected, signature)
+    
+    def process_webhook(self, event: str, data: Dict) -> bool:
+        """Process incoming webhook and call registered handlers"""
+        handlers = self._handlers.get(event, [])
+        success = True
+        
+        for handler in handlers:
+            try:
+                handler(data)
+            except Exception as e:
+                logger.error(f"Webhook handler failed for {event}: {e}")
+                success = False
+        
+        return success
+
+
+class OperationQueue:
+    """Queue operations for offline/buffered execution"""
+    
+    def __init__(self, max_size: int = 1000):
+        self._queue: deque = deque(maxlen=max_size)
+        self._lock = threading.Lock()
+        self._persist_path: Optional[Path] = None
+    
+    def set_persistence(self, path: str) -> None:
+        """Enable disk persistence for queue"""
+        self._persist_path = Path(path)
+        self._load_from_disk()
+    
+    def enqueue(self, operation: str, data: Dict) -> bool:
+        """Add operation to queue"""
+        with self._lock:
+            item = {
+                "operation": operation,
+                "data": data,
+                "timestamp": datetime.now().isoformat()
+            }
+            try:
+                self._queue.append(item)
+                if self._persist_path:
+                    self._save_to_disk()
+                return True
+            except Exception as e:
+                logger.error(f"Failed to enqueue operation: {e}")
+                return False
+    
+    def dequeue(self) -> Optional[Dict]:
+        """Get next operation from queue"""
+        with self._lock:
+            if self._queue:
+                item = self._queue.popleft()
+                if self._persist_path:
+                    self._save_to_disk()
+                return item
+            return None
+    
+    def peek_all(self) -> List[Dict]:
+        """View all queued operations without removing"""
+        with self._lock:
+            return list(self._queue)
+    
+    def clear(self) -> None:
+        """Clear all queued operations"""
+        with self._lock:
+            self._queue.clear()
+            if self._persist_path:
+                self._save_to_disk()
+    
+    def __len__(self) -> int:
+        return len(self._queue)
+    
+    def _save_to_disk(self) -> None:
+        """Persist queue to disk"""
+        if self._persist_path:
+            try:
+                with open(self._persist_path, 'w') as f:
+                    json.dump(list(self._queue), f)
+            except Exception as e:
+                logger.error(f"Failed to save queue: {e}")
+    
+    def _load_from_disk(self) -> None:
+        """Load queue from disk"""
+        if self._persist_path and self._persist_path.exists():
+            try:
+                with open(self._persist_path) as f:
+                    data = json.load(f)
+                    self._queue.extend(data)
+            except Exception as e:
+                logger.error(f"Failed to load queue: {e}")
 
 
 class SimpleCache:
@@ -252,10 +432,18 @@ class SevDeskClient:
     - TTL-based caching
     - Rate limiting
     - Pagination support
+    - **NEW: Batch operations** - Bulk create/update with concurrency control
+    - **NEW: Health monitoring** - API health checks
+    - **NEW: Webhook management** - Register and verify webhooks
+    - **NEW: Export/Import** - CSV/Excel data portability
+    - **NEW: Operation queue** - Offline operation buffering
     """
     
     def __init__(self, token: Optional[str] = None, enable_cache: bool = True, 
-                 cache_ttl: int = 300, config_path: Optional[str] = None):
+                 cache_ttl: int = 300, config_path: Optional[str] = None,
+                 batch_concurrency: int = DEFAULT_BATCH_CONCURRENCY,
+                 webhook_secret: Optional[str] = None,
+                 queue_persist_path: Optional[str] = None):
         """
         Initialize SevDesk client
         
@@ -264,6 +452,9 @@ class SevDeskClient:
             enable_cache: Enable response caching
             cache_ttl: Default cache TTL in seconds
             config_path: Path to config file (JSON)
+            batch_concurrency: Max parallel batch operations (default: 5)
+            webhook_secret: Secret for webhook signature verification
+            queue_persist_path: Path for operation queue persistence
         """
         self.token = token or API_TOKEN or self._load_token_from_config(config_path)
         if not self.token:
@@ -284,6 +475,13 @@ class SevDeskClient:
         self._last_request_time = 0.0
         self._min_request_interval = 1.0 / RATE_LIMIT_REQUESTS_PER_SECOND
         self._last_response_metadata: Optional[ResponseMetadata] = None
+        
+        # v2.2.0: New components
+        self._batch_concurrency = batch_concurrency
+        self.webhook_handler = WebhookHandler(secret=webhook_secret)
+        self.operation_queue = OperationQueue()
+        if queue_persist_path:
+            self.operation_queue.set_persistence(queue_persist_path)
     
     def _load_token_from_config(self, config_path: Optional[str]) -> Optional[str]:
         """Load API token from config file"""
@@ -787,6 +985,428 @@ class SevDeskClient:
         )
         return f"👤 {contact.get('name')} ({category}) - ID: {contact.get('id')}"
     
+    # ==================== v2.2.0: BATCH OPERATIONS ====================
+    
+    def batch_create_contacts(self, contacts: List[Dict], 
+                              continue_on_error: bool = True) -> BatchResult:
+        """
+        Batch create multiple contacts with concurrency control
+        
+        Args:
+            contacts: List of contact data dicts with 'name', 'email', etc.
+            continue_on_error: Continue processing if individual items fail
+        
+        Returns:
+            BatchResult with successful and failed operations
+        """
+        start_time = time.time()
+        result = BatchResult(total=len(contacts))
+        
+        def create_single(contact_data: Dict) -> Tuple[Optional[Dict], Optional[Dict]]:
+            try:
+                created = self.create_contact(**contact_data)
+                if 'error' in created:
+                    return None, {"data": contact_data, "error": created['error']}
+                return created, None
+            except Exception as e:
+                return None, {"data": contact_data, "error": str(e)}
+        
+        with ThreadPoolExecutor(max_workers=self._batch_concurrency) as executor:
+            futures = {executor.submit(create_single, c): c for c in contacts}
+            
+            for future in as_completed(futures):
+                success, error = future.result()
+                if success:
+                    result.successful.append(success)
+                else:
+                    result.failed.append(error)
+                    if not continue_on_error:
+                        executor.shutdown(wait=False)
+                        break
+        
+        result.duration_ms = (time.time() - start_time) * 1000
+        logger.info(f"Batch create contacts: {result.success_count}/{result.total} successful "
+                   f"({result.success_rate:.1f}%) in {result.duration_ms:.0f}ms")
+        return result
+    
+    def batch_create_invoices(self, invoices: List[Dict],
+                              continue_on_error: bool = True) -> BatchResult:
+        """
+        Batch create multiple invoices with concurrency control
+        
+        Args:
+            invoices: List of invoice data dicts with 'contact_id', 'items', etc.
+            continue_on_error: Continue processing if individual items fail
+        
+        Returns:
+            BatchResult with successful and failed operations
+        """
+        start_time = time.time()
+        result = BatchResult(total=len(invoices))
+        
+        def create_single(invoice_data: Dict) -> Tuple[Optional[Dict], Optional[Dict]]:
+            try:
+                created = self.create_invoice(**invoice_data)
+                if 'error' in created:
+                    return None, {"data": invoice_data, "error": created['error']}
+                return created, None
+            except Exception as e:
+                return None, {"data": invoice_data, "error": str(e)}
+        
+        with ThreadPoolExecutor(max_workers=self._batch_concurrency) as executor:
+            futures = {executor.submit(create_single, inv): inv for inv in invoices}
+            
+            for future in as_completed(futures):
+                success, error = future.result()
+                if success:
+                    result.successful.append(success)
+                else:
+                    result.failed.append(error)
+                    if not continue_on_error:
+                        executor.shutdown(wait=False)
+                        break
+        
+        result.duration_ms = (time.time() - start_time) * 1000
+        logger.info(f"Batch create invoices: {result.success_count}/{result.total} successful "
+                   f"({result.success_rate:.1f}%) in {result.duration_ms:.0f}ms")
+        return result
+    
+    def batch_update_invoice_status(self, invoice_ids: List[str], 
+                                    status: InvoiceStatus) -> BatchResult:
+        """
+        Batch update status of multiple invoices
+        
+        Args:
+            invoice_ids: List of invoice IDs to update
+            status: New status to set
+        
+        Returns:
+            BatchResult with successful and failed operations
+        """
+        start_time = time.time()
+        result = BatchResult(total=len(invoice_ids))
+        
+        def update_single(invoice_id: str) -> Tuple[Optional[str], Optional[Dict]]:
+            try:
+                # SevDesk API for status update
+                response = self._request(
+                    "PUT", 
+                    f"/Invoice/{invoice_id}", 
+                    data={"status": int(status)}
+                )
+                if 'error' in response:
+                    return None, {"invoice_id": invoice_id, "error": response['error']}
+                return invoice_id, None
+            except Exception as e:
+                return None, {"invoice_id": invoice_id, "error": str(e)}
+        
+        with ThreadPoolExecutor(max_workers=self._batch_concurrency) as executor:
+            futures = {executor.submit(update_single, inv_id): inv_id for inv_id in invoice_ids}
+            
+            for future in as_completed(futures):
+                success, error = future.result()
+                if success:
+                    result.successful.append({"invoice_id": success})
+                else:
+                    result.failed.append(error)
+        
+        result.duration_ms = (time.time() - start_time) * 1000
+        logger.info(f"Batch update invoices: {result.success_count}/{result.total} successful")
+        return result
+    
+    # ==================== v2.2.0: HEALTH CHECK ====================
+    
+    def health_check(self, timeout: float = 5.0) -> HealthStatus:
+        """
+        Check API health and connectivity
+        
+        Args:
+            timeout: Request timeout in seconds
+        
+        Returns:
+            HealthStatus with health information
+        """
+        start_time = time.time()
+        
+        try:
+            # Try a lightweight API call
+            response = requests.get(
+                f"{BASE_URL}/Contact",
+                headers=self.headers,
+                params={"limit": 1},
+                timeout=timeout
+            )
+            response_time = (time.time() - start_time) * 1000
+            
+            if response.status_code == 200:
+                # Try to get API version from headers if available
+                api_version = response.headers.get('X-API-Version', 'unknown')
+                return HealthStatus(
+                    healthy=True,
+                    response_time_ms=response_time,
+                    api_version=api_version,
+                    message="API is responsive"
+                )
+            elif response.status_code == 401:
+                return HealthStatus(
+                    healthy=False,
+                    response_time_ms=response_time,
+                    message="Authentication failed - check API token"
+                )
+            else:
+                return HealthStatus(
+                    healthy=False,
+                    response_time_ms=response_time,
+                    message=f"API returned status {response.status_code}"
+                )
+                
+        except requests.exceptions.Timeout:
+            return HealthStatus(
+                healthy=False,
+                response_time_ms=(time.time() - start_time) * 1000,
+                message=f"Request timed out after {timeout}s"
+            )
+        except requests.exceptions.ConnectionError:
+            return HealthStatus(
+                healthy=False,
+                response_time_ms=(time.time() - start_time) * 1000,
+                message="Connection error - check network"
+            )
+        except Exception as e:
+            return HealthStatus(
+                healthy=False,
+                response_time_ms=(time.time() - start_time) * 1000,
+                message=f"Health check failed: {str(e)}"
+            )
+    
+    # ==================== v2.2.0: WEBHOOKS ====================
+    
+    def list_webhooks(self) -> Dict:
+        """List all registered webhooks"""
+        return self._request("GET", "/Webhook")
+    
+    def create_webhook(self, url: str, events: List[WebhookEvent],
+                       name: Optional[str] = None, active: bool = True) -> Dict:
+        """
+        Register a new webhook
+        
+        Args:
+            url: Endpoint URL to receive webhook events
+            events: List of events to subscribe to
+            name: Optional webhook name
+            active: Whether webhook is active
+        
+        Returns:
+            API response with created webhook
+        """
+        data = {
+            "url": url,
+            "event": [e.value for e in events],
+            "active": active
+        }
+        if name:
+            data["name"] = name
+        
+        return self._request("POST", "/Webhook", data=data)
+    
+    def delete_webhook(self, webhook_id: str) -> Dict:
+        """Delete a webhook by ID"""
+        if not webhook_id:
+            raise ValueError("webhook_id is required")
+        return self._request("DELETE", f"/Webhook/{webhook_id}")
+    
+    def verify_webhook_signature(self, payload: bytes, signature: str) -> bool:
+        """Verify webhook payload signature"""
+        return self.webhook_handler.verify_signature(payload, signature)
+    
+    def register_webhook_handler(self, event: WebhookEvent, handler: Callable) -> None:
+        """Register a handler for a webhook event"""
+        self.webhook_handler.register_handler(event, handler)
+    
+    # ==================== v2.2.0: EXPORT/IMPORT ====================
+    
+    def export_contacts_csv(self, filename: Optional[str] = None,
+                            search: Optional[str] = None) -> str:
+        """
+        Export contacts to CSV format
+        
+        Args:
+            filename: Output filename (optional, returns CSV string if None)
+            search: Optional search filter
+        
+        Returns:
+            CSV content as string or path to saved file
+        """
+        result = self.list_contacts(search=search, limit=10000)
+        contacts = result.get("objects", [])
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header
+        writer.writerow(["ID", "Name", "Email", "Phone", "Customer Number", 
+                        "Category", "Created"])
+        
+        # Data
+        for contact in contacts:
+            writer.writerow([
+                contact.get("id", ""),
+                contact.get("name", ""),
+                contact.get("email", ""),
+                contact.get("phone", ""),
+                contact.get("customerNumber", ""),
+                contact.get("category", {}).get("name", ""),
+                contact.get("create", "")
+            ])
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        if filename:
+            with open(filename, 'w', newline='', encoding='utf-8') as f:
+                f.write(csv_content)
+            return filename
+        
+        return csv_content
+    
+    def export_invoices_csv(self, filename: Optional[str] = None,
+                            status: Optional[str] = None,
+                            start_date: Optional[str] = None,
+                            end_date: Optional[str] = None) -> str:
+        """
+        Export invoices to CSV format
+        
+        Args:
+            filename: Output filename (optional, returns CSV string if None)
+            status: Filter by status
+            start_date: Start date filter
+            end_date: End date filter
+        
+        Returns:
+            CSV content as string or path to saved file
+        """
+        result = self.list_invoices(status=status, start_date=start_date, 
+                                    end_date=end_date, limit=10000)
+        invoices = result.get("objects", [])
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header
+        writer.writerow(["ID", "Invoice Number", "Contact", "Contact ID",
+                        "Net Amount", "Gross Amount", "Status", "Date", "Due Date"])
+        
+        # Data
+        for inv in invoices:
+            contact = inv.get("contact", {})
+            writer.writerow([
+                inv.get("id", ""),
+                inv.get("invoiceNumber", ""),
+                contact.get("name", ""),
+                contact.get("id", ""),
+                inv.get("sumNet", 0),
+                inv.get("sumGross", 0),
+                inv.get("status", ""),
+                inv.get("invoiceDate", ""),
+                inv.get("deliveryDate", "")
+            ])
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        if filename:
+            with open(filename, 'w', newline='', encoding='utf-8') as f:
+                f.write(csv_content)
+            return filename
+        
+        return csv_content
+    
+    def import_contacts_csv(self, csv_data: str, skip_header: bool = True,
+                            dry_run: bool = False) -> BatchResult:
+        """
+        Import contacts from CSV data
+        
+        Args:
+            csv_data: CSV content as string
+            skip_header: Whether first row is header
+            dry_run: Validate without creating
+        
+        Returns:
+            BatchResult with import results
+        """
+        reader = csv.reader(io.StringIO(csv_data))
+        rows = list(reader)
+        
+        if skip_header and rows:
+            rows = rows[1:]
+        
+        contacts_to_create = []
+        for row in rows:
+            if len(row) >= 2 and row[1]:  # At least name required
+                contact = {"name": row[1]}
+                if len(row) > 2 and row[2]:
+                    contact["email"] = row[2]
+                if len(row) > 3 and row[3]:
+                    contact["phone"] = row[3]
+                contacts_to_create.append(contact)
+        
+        if dry_run:
+            result = BatchResult(total=len(contacts_to_create))
+            result.successful = [{"dry_run": True, "data": c} for c in contacts_to_create]
+            return result
+        
+        return self.batch_create_contacts(contacts_to_create)
+    
+    # ==================== v2.2.0: QUEUE MANAGEMENT ====================
+    
+    def queue_operation(self, operation: str, data: Dict) -> bool:
+        """Queue an operation for later execution"""
+        return self.operation_queue.enqueue(operation, data)
+    
+    def process_queue(self) -> BatchResult:
+        """Process all queued operations"""
+        operations = self.operation_queue.peek_all()
+        result = BatchResult(total=len(operations))
+        
+        while True:
+            item = self.operation_queue.dequeue()
+            if not item:
+                break
+            
+            try:
+                op = item["operation"]
+                data = item["data"]
+                
+                if op == "create_contact":
+                    self.create_contact(**data)
+                elif op == "create_invoice":
+                    self.create_invoice(**data)
+                elif op == "create_voucher":
+                    self.create_voucher(**data)
+                else:
+                    logger.warning(f"Unknown operation: {op}")
+                    result.failed.append({"operation": op, "error": "Unknown operation"})
+                    continue
+                
+                result.successful.append({"operation": op, "data": data})
+                
+            except Exception as e:
+                result.failed.append({"operation": item.get("operation"), 
+                                      "error": str(e)})
+        
+        return result
+    
+    def get_queue_status(self) -> Dict:
+        """Get current queue status"""
+        return {
+            "queued_operations": len(self.operation_queue),
+            "operations": self.operation_queue.peek_all()
+        }
+    
+    def clear_queue(self) -> None:
+        """Clear all queued operations"""
+        self.operation_queue.clear()
+    
     # ==================== STATS ====================
     
     def get_stats(self) -> Dict[str, Any]:
@@ -856,7 +1476,7 @@ Examples:
     parser.add_argument(
         '--version',
         action='version',
-        version='%(prog)s 2.1.0'
+        version=f'%(prog)s {VERSION}'
     )
     
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
@@ -875,6 +1495,13 @@ Examples:
     create_contact_parser.add_argument('name', help='Contact name')
     create_contact_parser.add_argument('--email', '-e', help='Email address')
     create_contact_parser.add_argument('--phone', '-p', help='Phone number')
+    
+    # batch-create-contacts command (v2.2.0)
+    batch_contacts_parser = subparsers.add_parser('batch-create-contacts', 
+                                                   help='Batch create contacts from CSV')
+    batch_contacts_parser.add_argument('csv_file', help='CSV file with contact data')
+    batch_contacts_parser.add_argument('--dry-run', action='store_true', 
+                                       help='Validate without creating')
     
     # invoices command
     invoices_parser = subparsers.add_parser('invoices', help='List invoices')
@@ -901,6 +1528,47 @@ Examples:
     send_parser.add_argument('invoice_id', help='Invoice ID')
     send_parser.add_argument('--email', '-e', help='Override recipient email')
     send_parser.add_argument('--subject', '-s', help='Email subject')
+    
+    # export commands (v2.2.0)
+    export_contacts_parser = subparsers.add_parser('export-contacts', help='Export contacts to CSV')
+    export_contacts_parser.add_argument('--output', '-o', help='Output filename')
+    export_contacts_parser.add_argument('--search', '-s', help='Search filter')
+    
+    export_invoices_parser = subparsers.add_parser('export-invoices', help='Export invoices to CSV')
+    export_invoices_parser.add_argument('--output', '-o', help='Output filename')
+    export_invoices_parser.add_argument('--status', choices=['draft', 'open', 'paid'])
+    export_invoices_parser.add_argument('--start-date', help='Start date (YYYY-MM-DD)')
+    export_invoices_parser.add_argument('--end-date', help='End date (YYYY-MM-DD)')
+    
+    # webhooks command (v2.2.0)
+    webhooks_parser = subparsers.add_parser('webhooks', help='List webhooks')
+    
+    create_webhook_parser = subparsers.add_parser('create-webhook', help='Create webhook')
+    create_webhook_parser.add_argument('url', help='Webhook URL')
+    create_webhook_parser.add_argument('--events', '-e', required=True,
+                                       help='Comma-separated events (e.g., ContactCreate,InvoiceCreate)')
+    create_webhook_parser.add_argument('--name', '-n', help='Webhook name')
+    
+    delete_webhook_parser = subparsers.add_parser('delete-webhook', help='Delete webhook')
+    delete_webhook_parser.add_argument('webhook_id', help='Webhook ID')
+    
+    # health command (v2.2.0)
+    health_parser = subparsers.add_parser('health', help='Check API health')
+    health_parser.add_argument('--timeout', '-t', type=float, default=5.0, 
+                               help='Timeout in seconds')
+    
+    # queue commands (v2.2.0)
+    queue_parser = subparsers.add_parser('queue', help='Show queue status')
+    queue_process_parser = subparsers.add_parser('queue-process', help='Process queued operations')
+    queue_clear_parser = subparsers.add_parser('queue-clear', help='Clear operation queue')
+    
+    # batch-update command (v2.2.0)
+    batch_update_parser = subparsers.add_parser('batch-update-invoices', 
+                                                 help='Batch update invoice status')
+    batch_update_parser.add_argument('invoice_ids', help='Comma-separated invoice IDs')
+    batch_update_parser.add_argument('--status', required=True, 
+                                     choices=['draft', 'open', 'paid'],
+                                     help='New status to set')
     
     # bank-accounts command
     subparsers.add_parser('bank-accounts', help='List bank accounts')
@@ -1071,6 +1739,159 @@ def handle_stats_command(client: SevDeskClient, args: argparse.Namespace) -> Non
             print(f"    Rate Limit Remaining: {last['rate_limit_remaining']}")
 
 
+# ==================== v2.2.0: NEW COMMAND HANDLERS ====================
+
+def handle_health_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle health check command"""
+    health = client.health_check(timeout=args.timeout)
+    status = "✅ Healthy" if health.healthy else "❌ Unhealthy"
+    print(f"\n{status}")
+    print(f"  Response Time: {health.response_time_ms:.1f}ms")
+    print(f"  API Version: {health.api_version or 'unknown'}")
+    print(f"  Message: {health.message}")
+    print(f"  Timestamp: {health.timestamp.isoformat()}")
+    
+    if not health.healthy:
+        sys.exit(1)
+
+
+def handle_export_contacts_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle export-contacts command"""
+    result = client.export_contacts_csv(filename=args.output, search=args.search)
+    if args.output:
+        print(f"✅ Contacts exported to: {result}")
+    else:
+        print(result)
+
+
+def handle_export_invoices_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle export-invoices command"""
+    result = client.export_invoices_csv(
+        filename=args.output,
+        status=args.status,
+        start_date=args.start_date,
+        end_date=args.end_date
+    )
+    if args.output:
+        print(f"✅ Invoices exported to: {result}")
+    else:
+        print(result)
+
+
+def handle_batch_create_contacts_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle batch-create-contacts command"""
+    try:
+        with open(args.csv_file, 'r', encoding='utf-8') as f:
+            csv_data = f.read()
+        
+        result = client.import_contacts_csv(csv_data, dry_run=args.dry_run)
+        
+        if args.dry_run:
+            print(f"\n🔍 Dry Run: Would create {result.success_count} contacts")
+            for item in result.successful[:5]:
+                print(f"  - {item['data'].get('name', 'N/A')}")
+            if len(result.successful) > 5:
+                print(f"  ... and {len(result.successful) - 5} more")
+        else:
+            print(f"\n✅ Batch Result:")
+            print(f"  Successful: {result.success_count}/{result.total}")
+            print(f"  Failed: {result.failure_count}")
+            print(f"  Success Rate: {result.success_rate:.1f}%")
+            print(f"  Duration: {result.duration_ms:.0f}ms")
+            
+            if result.failed:
+                print(f"\n❌ Failures:")
+                for fail in result.failed[:5]:
+                    print(f"  - {fail.get('data', {}).get('name', 'N/A')}: {fail.get('error')}")
+    
+    except FileNotFoundError:
+        print(f"❌ File not found: {args.csv_file}")
+        sys.exit(1)
+
+
+def handle_webhooks_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle webhooks list command"""
+    result = client.list_webhooks()
+    webhooks = result.get("objects", [])
+    print(f"\n🔗 {len(webhooks)} Webhooks:\n")
+    for wh in webhooks:
+        status = "✅" if wh.get("active") else "❌"
+        print(f"  {status} {wh.get('name', 'Unnamed')} ({wh.get('id')})")
+        print(f"     URL: {wh.get('url')}")
+        print(f"     Events: {', '.join(wh.get('event', []))}")
+
+
+def handle_create_webhook_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle create-webhook command"""
+    try:
+        events = [WebhookEvent(e.strip()) for e in args.events.split(',')]
+    except ValueError as e:
+        print(f"❌ Invalid event type: {e}")
+        print(f"Valid events: {[e.value for e in WebhookEvent]}")
+        sys.exit(1)
+    
+    result = client.create_webhook(args.url, events, name=args.name)
+    if 'error' in result:
+        print(f"❌ Error: {result['error']}")
+    else:
+        print(f"✅ Webhook created: {result.get('objects', [{}])[0].get('id')}")
+
+
+def handle_delete_webhook_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle delete-webhook command"""
+    result = client.delete_webhook(args.webhook_id)
+    if 'error' in result:
+        print(f"❌ Error: {result['error']}")
+    else:
+        print(f"✅ Webhook deleted: {args.webhook_id}")
+
+
+def handle_queue_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle queue status command"""
+    status = client.get_queue_status()
+    print(f"\n📋 Operation Queue:")
+    print(f"  Queued: {status['queued_operations']}")
+    if status['queued_operations'] > 0:
+        print(f"\n  Pending operations:")
+        for op in status['operations'][:10]:
+            print(f"    - {op['operation']} ({op['timestamp']})")
+
+
+def handle_queue_process_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle queue-process command"""
+    result = client.process_queue()
+    print(f"\n✅ Queue Processing Complete:")
+    print(f"  Successful: {result.success_count}/{result.total}")
+    print(f"  Failed: {result.failure_count}")
+    print(f"  Duration: {result.duration_ms:.0f}ms")
+
+
+def handle_queue_clear_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle queue-clear command"""
+    client.clear_queue()
+    print("✅ Operation queue cleared")
+
+
+def handle_batch_update_invoices_command(client: SevDeskClient, args: argparse.Namespace) -> None:
+    """Handle batch-update-invoices command"""
+    invoice_ids = [id.strip() for id in args.invoice_ids.split(',')]
+    
+    status_map = {
+        'draft': InvoiceStatus.DRAFT,
+        'open': InvoiceStatus.OPEN,
+        'paid': InvoiceStatus.PAID
+    }
+    new_status = status_map[args.status]
+    
+    print(f"\n🔄 Updating {len(invoice_ids)} invoices to status '{args.status}'...")
+    result = client.batch_update_invoice_status(invoice_ids, new_status)
+    
+    print(f"✅ Batch Update Complete:")
+    print(f"  Successful: {result.success_count}/{result.total}")
+    print(f"  Failed: {result.failure_count}")
+    print(f"  Duration: {result.duration_ms:.0f}ms")
+
+
 def main():
     """Main CLI entry point"""
     parser = create_parser()
@@ -1097,15 +1918,26 @@ def main():
         'contacts': handle_contacts_command,
         'contact': handle_contact_command,
         'create-contact': handle_create_contact_command,
+        'batch-create-contacts': handle_batch_create_contacts_command,
         'invoices': handle_invoices_command,
         'invoice': handle_invoice_command,
         'create-invoice': handle_create_invoice_command,
+        'batch-update-invoices': handle_batch_update_invoices_command,
         'unpaid': handle_unpaid_command,
         'send-invoice': handle_send_invoice_command,
         'bank-accounts': handle_bank_accounts_command,
         'transactions': handle_transactions_command,
         'vouchers': handle_vouchers_command,
         'stats': handle_stats_command,
+        'health': handle_health_command,
+        'export-contacts': handle_export_contacts_command,
+        'export-invoices': handle_export_invoices_command,
+        'webhooks': handle_webhooks_command,
+        'create-webhook': handle_create_webhook_command,
+        'delete-webhook': handle_delete_webhook_command,
+        'queue': handle_queue_command,
+        'queue-process': handle_queue_process_command,
+        'queue-clear': handle_queue_clear_command,
     }
     
     handler = command_handlers.get(args.command)

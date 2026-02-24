@@ -1,0 +1,143 @@
+{
+  "name": "📊 Daily Lead Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "minutesInterval": 1,
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "name": "Daily 9AM"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "databaseId": "YOUR_DATABASE_ID",
+        "limit": 100,
+        "filter": {
+          "filters": [
+            {
+              "type": "created_time",
+              "filter": {
+                "past_week": {}
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "name": "Get Leads from Notion",
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const leads = $input.all()[0].json;\n\nconst stats = {\n  total: leads.length,\n  hot: leads.filter(l => l.properties.Tier?.select?.name === '🔥 HOT').length,\n  warm: leads.filter(l => l.properties.Tier?.select?.name === '⚡ WARM').length,\n  cold: leads.filter(l => l.properties.Tier?.select?.name === '🧊 COLD').length,\n  new: leads.filter(l => l.properties.Status?.select?.name === 'NEW').length,\n  contacted: leads.filter(l => l.properties.Status?.select?.name === 'CONTACTED').length\n};\n\nconst hotLeads = leads\n  .filter(l => l.properties.Tier?.select?.name === '🔥 HOT')\n  .slice(0, 5)\n  .map(l => ({\n    name: l.properties.Name?.title?.[0]?.plain_text || 'Unknown',\n    company: l.properties.Firma?.rich_text?.[0]?.plain_text || '',\n    score: l.properties.Score?.number || 0\n  }));\n\nreturn [{\n  json: {\n    date: new Date().toISOString().split('T')[0],\n    stats,\n    hotLeads,\n    reportText: `📊 *Daily Lead Report*\n\n*Stats:*\n• Total: ${stats.total}\n• 🔥 HOT: ${stats.hot}\n• ⚡ WARM: ${stats.warm}\n• 🧊 COLD: ${stats.cold}\n\n*Top HOT Leads:*\n${hotLeads.map(l => `• ${l.name} @ ${l.company} (${l.score} pts)`).join('\\n')}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "name": "Generate Report"
+    },
+    {
+      "parameters": {
+        "channel": "#leads",
+        "text": "={{ $json.reportText }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "name": "Send to Slack",
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toRecipients": "founder@navii-automation.de",
+        "subject": "📊 Daily Lead Report - {{ $json.date }}",
+        "text": "={{ $json.reportText }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [850, 500],
+      "name": "Email Report",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail OAuth2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 9AM": {
+      "main": [
+        [
+          {
+            "node": "Get Leads from Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Leads from Notion": {
+      "main": [
+        [
+          {
+            "node": "Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Report": {
+      "main": [
+        [
+          {
+            "node": "Send to Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "Reporting",
+      "id": "tag-reporting"
+    }
+  ]
+}

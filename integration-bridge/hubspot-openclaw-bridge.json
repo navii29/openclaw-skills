@@ -1,0 +1,216 @@
+{
+  "name": "HubSpot ↔ OpenClaw Bridge - Deal Enrichment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hubspot-deal-bridge",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "HubSpot Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "hubspot-deal-bridge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// API Key Validation\nconst apiKey = $input.first().json.headers['x-api-key'] || $input.first().json.headers['X-API-Key'];\nif (apiKey !== $env.BRIDGE_API_KEY) {\n  return [{\n    json: {\n      status: 'error',\n      message: 'Unauthorized - Invalid API Key'\n    }\n  }];\n}\n\n// Parse HubSpot Payload\nconst body = $input.first().json.body;\n\n// Extract deal data\nconst dealId = body.objectId || body.dealId;\nconst portalId = body.portalId;\nconst properties = body.properties || {};\n\n// Get company name\nconst company = properties.company?.value || \n                properties.dealname?.value || \n                body.company || \n                'Unknown Company';\n\n// Get contact email\nconst contactEmail = properties.email?.value || \n                     properties.hs_email_domain?.value || \n                     'no-email@unknown.com';\n\n// Get deal value\nconst dealValue = parseFloat(properties.amount?.value || properties.dealamount?.value || 0);\n\nreturn [{\n  json: {\n    dealId,\n    portalId,\n    company,\n    contactEmail,\n    dealValue,\n    rawPayload: body\n  }\n}];"
+      },
+      "id": "parse-node",
+      "name": "Validate \u0026 Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gateway.openclaw.ai/v1/sessions/spawn",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "agentId": "research-agent",
+          "task": "={{ 'Research company: ' + $json.company + ', Contact: ' + $json.contactEmail + ', Deal Value: €' + $json.dealValue + '. Return a JSON object with exactly these fields: lead_score (number 0-100), company_size (string like 1-10, 11-50, 51-200, 201-1000, 1000+), tech_signals (array of strings), outreach_angle (one sentence string), priority (LOW, MEDIUM, or HIGH)' }}",
+          "runTimeoutSeconds": 120,
+          "cleanup": "delete"
+        },
+        "options": {}
+      },
+      "id": "openclaw-node",
+      "name": "Call OpenClaw Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse OpenClaw response\nconst openclawResponse = $input.first().json;\n\n// Try to extract JSON from text response\nlet researchData = {};\nconst responseText = openclawResponse.message || openclawResponse.text || JSON.stringify(openclawResponse);\n\ntry {\n  // Try to find JSON in the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    researchData = JSON.parse(jsonMatch[0]);\n  } else {\n    researchData = openclawResponse;\n  }\n} catch (e) {\n  // Fallback parsing\n  researchData = {\n    lead_score: 50,\n    company_size: 'Unknown',\n    tech_signals: [],\n    outreach_angle: 'AI Automation opportunity',\n    priority: 'MEDIUM'\n  };\n}\n\nreturn [{\n  json: {\n    dealId: $input.first().json.dealId,\n    portalId: $input.first().json.portalId,\n    company: $input.first().json.company,\n    contactEmail: $input.first().json.contactEmail,\n    dealValue: $input.first().json.dealValue,\n    research: researchData,\n    processedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "transform-node",
+      "name": "Transform Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://api.hubapi.com/crm/v3/objects/deals/' + $json.dealId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "properties": {
+            "lead_score": "={{ $json.research.lead_score }}",
+            "company_size": "={{ $json.research.company_size }}",
+            "ai_research_notes": "={{ $json.research.outreach_angle }}",
+            "ai_priority": "={{ $json.research.priority }}",
+            "ai_enriched_at": "={{ $json.processedAt }}",
+            "ai_tech_signals": "={{ JSON.stringify($json.research.tech_signals) }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "hubspot-update-node",
+      "name": "Update HubSpot Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.research.priority }}",
+              "rightValue": "HIGH",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-node",
+      "name": "High Priority?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#sales-alerts",
+        "text": "={{ '🔥 HIGH PRIORITY DEAL ENRICHED\\n\\nCompany: ' + $json.company + '\\nDeal Value: €' + $json.dealValue + '\\nLead Score: ' + $json.research.lead_score + '/100\\nSize: ' + $json.research.company_size + '\\n\\n💡 Outreach Angle: ' + $json.research.outreach_angle + '\\n\\n🔗 View in HubSpot: https://app.hubspot.com/contacts/' + $json.portalId + '/deal/' + $json.dealId }}"
+      },
+      "id": "slack-node",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1250, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "jsonPayload": "={{ {\"status\": \"success\", \"dealId\": $json.dealId, \"company\": $json.company, \"enriched\": true, \"leadScore\": $json.research.lead_score, \"priority\": $json.research.priority} }}"
+      },
+      "id": "respond-node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1250, 150]
+    }
+  ],
+  "connections": {
+    "HubSpot Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate \u0026 Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate \u0026 Parse": {
+      "main": [
+        [
+          {
+            "node": "Call OpenClaw Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenClaw Agent": {
+      "main": [
+        [
+          {
+            "node": "Transform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Response": {
+      "main": [
+        [
+          {
+            "node": "Update HubSpot Deal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "High Priority?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update HubSpot Deal": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Priority?": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": []
+}

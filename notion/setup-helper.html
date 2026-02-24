@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎯 LinkedIn Lead Pipeline Setup</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        .bookmarklet {
+            background: #2eaadc;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 6px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 20px 0;
+            font-weight: bold;
+            cursor: grab;
+        }
+        .bookmarklet:hover {
+            background: #2596be;
+        }
+        .steps {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .steps li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        .code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 LinkedIn Lead Pipeline Setup</h1>
+        <p>Da die Browser-Automation instabil ist, verwenden wir ein Bookmarklet für das Setup.</p>
+        
+        <h2>Schritt 1: Bookmarklet erstellen</h2>
+        <p>Ziehe diesen Button in deine Lesezeichen-Leiste:</p>
+        <a class="bookmarklet" href="javascript:(function(){const props=[{name:'Titel',type:'text'},{name:'Score',type:'number'},{name:'Tier',type:'select',options:['🔥 HOT','⚡ WARM','🧊 COLD']},{name:'Status',type:'select',options:['NEW','CONTACTED','REPLY','MEETING','WON','LOST']},{name:'Location',type:'text'},{name:'LinkedIn',type:'url'},{name:'Outreach',type:'text'},{name:'Signals',type:'text'}];let i=0;function addProp(){if(i>=props.length){alert('✅ Setup abgeschlossen!');return;}const p=props[i++];const btns=document.querySelectorAll('[role=\"button\"]');let addBtn=null;for(const b of btns){if(b.textContent.includes('Add property')||b.getAttribute('data-testid')?.includes('property-add')){addBtn=b;break;}}if(!addBtn){console.log('Suche Add property Button...');setTimeout(addProp,500);return;}addBtn.click();setTimeout(()=>{const nameInput=document.querySelector('input[placeholder*=\"Property\"],input[placeholder*=\"property\"]');if(nameInput){nameInput.value=p.name;nameInput.dispatchEvent(new Event('input',{bubbles:true}));}setTimeout(()=>{if(p.type!=='text'){const typeBtn=document.querySelector(`[role=\"menuitem\"]:has-text(\"${p.type}\")`);if(typeBtn)typeBtn.click();}setTimeout(()=>{if(p.options){for(const opt of p.options){const optInput=document.querySelector('input[placeholder*=\"option\"],input[placeholder*=\"Option\"]');if(optInput){optInput.value=opt;optInput.dispatchEvent(new Event('input',{bubbles:true}));optInput.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));}}}setTimeout(()=>{const saveBtn=document.querySelector('button[type=\"submit\"],[role=\"button\"]:has-text(\"Save\")');if(saveBtn)saveBtn.click();setTimeout(addProp,800);},400);},400);},400);},600);}addProp();})();">🔗 Notion Lead Setup</a>
+
+        <div class="steps">
+            <h3>Anleitung:</h3>
+            <ol>
+                <li>Ziehe den blauen Button oben in deine Lesezeichen-Leiste</li>
+                <li>Öffne deine Notion-Seite "🎯 LinkedIn Lead Pipeline"</li>
+                <li>Klicke auf das Lesezeichen "Notion Lead Setup"</li>
+                <li>Warte ca. 30 Sekunden - das Script fügt alle Properties automatisch hinzu</li>
+                <li>Fertig!</li>
+            </ol>
+        </div>
+
+        <h2>Schritt 2: Views erstellen (manuell)</h2>
+        <p>Nach dem Property-Setup:</p>
+        <ol>
+            <li>Klicke auf "+ Add view" → "Board"</li>
+            <li>Group by: "Tier"</li>
+            <li>Erstelle noch eine "Table" View als Default</li>
+        </ol>
+
+        <h2>Schritt 3: CSV Import</h2>
+        <ol>
+            <li>Klicke auf die drei Punkte (...) oben rechts in der Datenbank</li>
+            <li>Wähle "Merge with CSV"</li>
+            <li>Wähle die Datei: <code>notion/leads-import.csv</code></li>
+        </ol>
+
+        <h2>Manuelles Fallback</h2>
+        <p>Falls das Bookmarklet nicht funktioniert, füge die Properties manuell hinzu:</p>
+        <div class="code">
+Properties:
+- Titel (Text)
+- Score (Number) 
+- Tier (Select): 🔥 HOT, ⚡ WARM, 🧊 COLD
+- Status (Select): NEW, CONTACTED, REPLY, MEETING, WON, LOST
+- Location (Text)
+- LinkedIn (URL)
+- Outreach (Text)
+- Signals (Text)
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+Betreff: Debezium + Automation - 15 Minuten?
+
+Hallo Gunnar,
+
+ich folge Ihrer Arbeit bei Confluent und mit Debezium — beeindruckend, wie Sie Daten-Streaming voranbringen.
+
+Wir bei Navii Automation (https://navii-automation.de) bauen Workflow-Automation für Tech-Teams, die mit Event-Driven-Architekturen arbeiten.
+
+Konkrete Frage: Wie handhaben Sie aktuell Lead-Generierung und Sales-Automation bei Confluent? Viele DevTools-Unternehmen kämpfen damit, technische Aufmerksamkeit (GitHub, Blog) in qualifizierte Enterprise-Leads zu konvertieren.
+
+Wir haben gerade ein System gebaut, das:
+• GitHub Stars → Scored Leads konvertiert
+• Automatisches Tech-Stack-basiertes Outreach
+• 40% Zeitersparnis im Sales-Prozess
+
+Passt das zu Ihren aktuellen Herausforderungen?
+
+15 Minuten Austausch?
+https://calendly.com/kontakt-navii-automation/new-meeting
+
+Beste Grüße,
+Fridolin
+Co-Founder, Navii Automation
+https://navii-automation.de
+
+P.S.: Debezium war ein Game-Changer für unsere CDC-Pipelines 🚀
