@@ -1,0 +1,41 @@
+{
+  "posts": [
+    {
+      "text": "Post 1",
+      "scheduled_time": "2026-02-25T17:30:00",
+      "image_url": null,
+      "article_url": null,
+      "visibility": "PUBLIC",
+      "posted": false,
+      "post_id": null
+    },
+    {
+      "text": "Post 2",
+      "scheduled_time": "2026-02-26T08:30:00",
+      "image_url": null,
+      "article_url": null,
+      "visibility": "PUBLIC",
+      "posted": false,
+      "post_id": null
+    },
+    {
+      "text": "Post 3",
+      "scheduled_time": "2026-02-26T12:00:00",
+      "image_url": null,
+      "article_url": null,
+      "visibility": "PUBLIC",
+      "posted": false,
+      "post_id": null
+    },
+    {
+      "text": "Post 4",
+      "scheduled_time": "2026-02-26T17:30:00",
+      "image_url": null,
+      "article_url": null,
+      "visibility": "PUBLIC",
+      "posted": false,
+      "post_id": null
+    }
+  ],
+  "last_update": "2026-02-25T17:22:44.681497"
+}

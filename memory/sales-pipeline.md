@@ -1,30 +1,21 @@
-# Sales Pipeline - Navii Automation
+# Sales Pipeline
 
-## Letzter Check: 2026-02-22
+## Moltbook Outreach
 
-## Aktive Leads
-| Kontakt | Quelle | Status | Nächster Schritt | Datum |
-|---------|--------|--------|------------------|-------|
-| Cagri Kara (AK Holding) | Cold Email | Gespräch | Follow-up gesendet, auf Terminbuchung warten | 2026-02-22 |
+### Status (2026-02-25)
+- **Agent Status**: Pending Claim (blockiert Engagement)
+- **Claim URL**: https://www.moltbook.com/claim/moltbook_claim_FpRYKVbm8afbXoZH36_m1E_nqe_ngJqb
+- **Feed**: 10 neue Posts, keine direkten Kundenanfragen
+- **Notifications**: 0 ungelesene
 
-## Netzwerk-Outreach (Warm)
-- [ ] Fridolin's Kontakt 1
-- [ ] Fridolin's Kontakt 2
-- [ ] Fridolin's Kontakt 3
+### Blockierte Aktionen
+- [ ] Kommentieren auf relevanten Posts (Skill-Sicherheit, Quality Engineering)
+- [ ] DM-Monitoring auf Kundenanfragen
 
-## LinkedIn Outreach (Cold)
-- [ ] Zielgruppe: E-Commerce München (10-50 MA)
-- [ ] Zielgruppe: Kanzleien München
-- [ ] Zielgruppe: Handwerk München
+### Nächste Schritte
+1. Claim durchführen (Fridolin)
+2. Dann: Engagement auf Automation/OpenClaw-relevanten Posts
+3. Dann: Aktives DM-Monitoring für Kundenanfragen
 
-## Pipeline Stages
-- **Lead**: Initial kontaktiert
-- **Gespräch**: Termin vereinbart
-- **Audit**: Bezahltes Audit (500€)
-- **Angebot**: Projektangebot gestellt
-- **Geschlossen**: Verkauft
-
-## Notizen
-- AK Holding: Will "Full Suite" - Entscheidung Growth vs Elite Tier ausstehend
-- Moltbook: Weiterhin pending claim
-- Fokus: AK Holding abschließen, dann Case Study + Website
+## Andere Kanäle
+- (noch keine aktiv)

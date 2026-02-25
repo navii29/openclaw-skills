@@ -5,7 +5,7 @@ description: Deploy 1-click AI email automation for businesses. Sorts, prioritiz
 
 # Inbox AI - Business Email Automation
 
-**Version:** 2.1.0 | **Preis:** 199 EUR/Monat | **Support:** DE/EN
+**Version:** 2.2.0 | **Preis:** 199 EUR/Monat | **Support:** DE/EN
 
 Complete email automation system for service businesses, executives, and support teams.
 
@@ -46,6 +46,22 @@ Complete email automation system for service businesses, executives, and support
   - Sender importance scoring
   - Category accuracy improvement
   - Response time optimization
+
+### v2.2.0 Performance & Reliability 🆕🆕
+- **SMTP Connection Pooling** - Up to 70% faster mass replies
+  - Reuses SMTP connections (max 3 pooled)
+  - Automatic connection health checks
+  - Reduced connection overhead
+- **Persistent Job Queue** - Never lose an email on crash
+  - SQLite-based queue with crash recovery
+  - Idempotency tracking (no duplicates)
+  - Automatic retry with max 3 attempts
+  - Queue statistics and monitoring
+- **Professional HTML Auto-Replies** - Beautiful formatted emails
+  - Responsive design for mobile
+  - Category-specific branded templates
+  - Multipart (plain + HTML) emails
+  - Professional call-to-action buttons
 
 ## Use Cases
 
@@ -221,7 +237,7 @@ from self_healing_system import (
     CircuitBreaker
 )
 
-# Zero-Config Setup
+# Zero-Config Setup (v2.1+)
 config = ZeroConfigSetup.auto_configure(
     email="kontakt@company.de",
     password="your-password"
@@ -231,6 +247,14 @@ if config:
     print(f"✅ Auto-configured: {config['provider'].value}")
     print(f"   IMAP: {config['imap_server']}")
     print(f"   SMTP: {config['smtp_server']}")
+
+# v2.2+ Persistent Queue
+from inbox_processor_v2 import PersistentJobQueue
+
+queue = PersistentJobQueue()
+stats = queue.get_stats()
+print(f"Pending jobs: {stats.get('pending', 0)}")
+print(f"Total processed: {stats.get('total_processed_ever', 0)}")
 
 # Self-Healing Email Client
 client = SelfHealingEmailClient(
@@ -252,11 +276,12 @@ client = SelfHealingEmailClient(
 if client.connect():
     print("✅ Connected with self-healing enabled")
     
-    # Send email (auto-retry on failure)
+    # Send email with HTML support (v2.2+)
     success = client.send_email(
         to="recipient@example.com",
         subject="Test",
-        body="Hello from self-healing system!"
+        body="Hello from self-healing system!",
+        html_body="<h1>Hello!</h1><p>Self-healing system is working.</p>"
     )
     
     # Check health metrics

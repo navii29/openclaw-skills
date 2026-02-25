@@ -1,0 +1,55 @@
+{
+  "invoice_number": "RE-2025-001",
+  "invoice_date": "2025-02-25",
+  "due_date": "2025-03-25",
+  "delivery_date": "2025-02-20",
+  "seller": {
+    "name": "Navii Automation GmbH",
+    "street": "Musterstraße 1",
+    "zip": "12345",
+    "city": "Berlin",
+    "country": "DE",
+    "vat_id": "DE123456789",
+    "tax_number": "1234567890",
+    "contact_email": "rechnung@navii.de",
+    "iban": "DE89370400440532013000",
+    "bic": "COBADEFFXXX"
+  },
+  "buyer": {
+    "name": "Max Mustermann GmbH",
+    "street": "Beispielweg 5",
+    "zip": "54321",
+    "city": "München",
+    "country": "DE",
+    "vat_id": "DE987654321",
+    "buyer_reference": "MAX-12345"
+  },
+  "items": [
+    {
+      "position": 1,
+      "description": "Software-Lizenz OpenClaw Pro",
+      "quantity": 1,
+      "unit": "C62",
+      "price": 1000.00,
+      "vat_rate": 19
+    },
+    {
+      "position": 2,
+      "description": "Support & Wartung",
+      "quantity": 12,
+      "unit": "MON",
+      "price": 99.00,
+      "vat_rate": 19
+    },
+    {
+      "position": 3,
+      "description": "Schulung (Online)",
+      "quantity": 5,
+      "unit": "HUR",
+      "price": 150.00,
+      "vat_rate": 19
+    }
+  ],
+  "payment_terms": "Zahlbar innerhalb von 30 Tagen ohne Abzug",
+  "currency": "EUR"
+}

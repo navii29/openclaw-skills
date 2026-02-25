@@ -1,0 +1,32 @@
+{
+  "msg_id": "DEMO-20240225-001",
+  "initiator_name": "Musterfirma GmbH",
+  "creation_date_time": "2024-02-25T10:00:00",
+  "payment_infos": [
+    {
+      "payment_info_id": "BATCH-001",
+      "debtor_name": "Musterfirma GmbH",
+      "debtor_iban": "DE89370400440532013000",
+      "debtor_bic": "COBADEFFXXX",
+      "requested_execution_date": "2024-02-26"
+    }
+  ],
+  "transactions": [
+    {
+      "end_to_end_id": "E2E-001",
+      "amount": 5000.00,
+      "creditor_name": "Lieferant A GmbH",
+      "creditor_iban": "DE75512108001245126199",
+      "creditor_bic": "INGDDEFFXXX",
+      "remittance_info": "Rechnung 2024-001"
+    },
+    {
+      "end_to_end_id": "E2E-002",
+      "amount": 3200.50,
+      "creditor_name": "Lieferant B KG",
+      "creditor_iban": "DE12500105170648489890",
+      "creditor_bic": "INGDDEFFXXX",
+      "remittance_info": "Rechnung 2024-002"
+    }
+  ]
+}

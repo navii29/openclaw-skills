@@ -1,53 +1,194 @@
-# Skill: Gmail Auto-Reply for Client
+# Gmail Auto-Reply Agent v2.0
 
-## Purpose
+**Version:** 2.0.0 | **Status:** Production Ready
 
-This skill enables the agent to **automatically answer Gmail messages on behalf of a client**. The agent drafts and (when the user approves or when configured) sends replies using the client’s tone, sign-off, and optional templates.
+Professional Gmail automation with AI-powered replies, sentiment analysis, and writing style learning.
 
-## When to Use
+## Features
 
-- The user asks to “reply to my emails,” “answer my Gmail,” or “draft responses to incoming mail.”
-- The user provides a Gmail context (e.g. “inbox for client@example.com”) and wants automated or semi-automated replies.
-- The user wants the agent to act as the client when responding to specific threads or senders.
+### Core Features (v2.0)
+- ✅ **Gmail API Integration** - Direct integration with Gmail via OAuth2
+- ✅ **Smart Categorization** - Automatically categorizes emails (urgent, meeting, follow-up, etc.)
+- ✅ **Sentiment Analysis** - Detects tone to prioritize negative/urgent emails
+- ✅ **Writing Style Learning** - Learns from your sent emails to match your tone
+- ✅ **Template Matching** - AI-powered template selection based on email content
+- ✅ **HTML + Plain-Text** - Professional multipart emails
+- ✅ **Priority Scoring** - 0-1 score for intelligent routing
+- ✅ **Persistent Storage** - SQLite database for tracking and analytics
+- ✅ **Idempotency** - Never process the same email twice
 
-## Prerequisites (User/Client Must Provide)
+## Quick Start
 
-- **Gmail access**: OAuth2 or app password for the client’s Gmail (never store raw passwords in the skill; use environment variables or secure config).
-- **Client profile** (optional but recommended): short brief (tone, sign-off, topics they handle, topics to defer).
+### 1. Setup Gmail API Credentials
 
-## Instructions
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project
+3. Enable Gmail API
+4. Create OAuth2 credentials (Desktop application)
+5. Download `credentials.json` to `~/.openclaw/gmail_credentials.json`
 
-1. **Gather context**
-   - Ask for or read the client’s brief: tone (formal/casual), sign-off (e.g. “Best,” “Thanks,”), and any “do not answer” or “always escalate” rules.
-   - If the user provides an email thread or summary, use that as the incoming message to answer.
+### 2. Install Dependencies
 
-2. **Draft the reply**
-   - Write a concise, professional reply that:
-     - Addresses the sender and the main question or request.
-     - Matches the client’s tone and sign-off.
-     - Does not promise anything outside the client’s scope (e.g. legal/financial) unless the user explicitly approves.
-   - Prefer short paragraphs and clear next steps (e.g. “I’ll get back to you by Friday”).
+```bash
+pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+```
 
-3. **Use templates when provided**
-   - If the client has added templates (see `templates/reply_templates.json` or user-defined templates), pick the closest match by intent (e.g. “acknowledgment,” “meeting request,” “out of office”) and personalize placeholders like `{{sender_name}}`, `{{topic}}`, `{{deadline}}`.
+### 3. Run the Agent
 
-4. **Safety and approval**
-   - By default, **output the draft** for the user/client to approve before sending.
-   - Only auto-send if the user has clearly configured “auto-send” and you have applied the client’s rules and filters (e.g. only for certain labels or senders).
+```bash
+# First time: authenticate and learn from sent emails
+python3 scripts/gmail_agent.py --client-name "John Doe" --learn
 
-5. **Integrations**
-   - If the user has configured Gmail API (OAuth2) or IMAP/SMTP, use the credentials from environment or secure config—never from this skill’s files.
-   - When “sending,” either return the draft text for the user to paste/send, or call the configured send function if the user has set one up.
+# Process inbox (draft mode)
+python3 scripts/gmail_agent.py --max-emails 10
 
-## Files in This Package
+# Auto-send high priority replies
+python3 scripts/gmail_agent.py --auto-send --max-emails 20
 
-- `SKILL.md` – This file (skill instructions).
-- `manifest.json` – Package metadata.
-- `templates/reply_templates.json` – Optional starter templates (acknowledgment, meeting, short reply).
-- `scripts/README.md` – Short note on how the client can add their own scripts or rules.
+# View statistics
+python3 scripts/gmail_agent.py --stats
+```
 
-## Example Interaction
+## Email Categories
 
-**User:** “Reply to this email as my client. Sender: Jane. She’s asking for a meeting next week. Client prefers a short, friendly reply and uses ‘Best’ as sign-off.”
+The agent automatically categorizes emails:
 
-**Agent:** Uses this skill to draft a short, friendly reply addressing Jane, suggesting a time or asking for availability, and signing “Best,” then returns the draft for the user to approve or send.
+| Category | Description | Priority Boost |
+|----------|-------------|----------------|
+| `urgent` | Urgent requests, ASAP, deadlines | +0.4 |
+| `meeting_request` | Meeting, call, scheduling requests | +0.2 |
+| `follow_up` | Status updates, follow-ups | +0.1 |
+| `question` | Questions, how-to requests | +0.1 |
+| `acknowledgment` | Thank you messages | -0.1 |
+| `spam` | Promotional, unwanted | -0.5 (ignored) |
+| `newsletter` | Subscriptions, digests | -0.3 (ignored) |
+
+## Sentiment Analysis
+
+Detects email tone for prioritization:
+
+| Sentiment | Trigger Words | Priority Impact |
+|-----------|---------------|-----------------|
+| Very Negative | terrible, awful, hate, angry | +0.3 |
+| Negative | bad, problem, disappointed | +0.1 |
+| Neutral | (default) | 0 |
+| Positive | good, great, thanks | 0 |
+| Very Positive | amazing, excellent, love | 0 |
+
+## Writing Style Learning
+
+The agent learns from your sent emails:
+
+- **Greeting style**: Hi, Hello, Dear, Hey
+- **Sign-off**: Best, Thanks, Regards, Cheers
+- **Formality level**: 0-1 scale (casual to formal)
+- **Sentence length**: Average words per sentence
+- **Emoji usage**: Whether you use emojis
+- **Reply length**: Average word count
+
+## Template System
+
+Built-in templates for common scenarios:
+
+1. **Urgent Acknowledgment** - Quick response to urgent emails
+2. **Meeting Request** - Respond to meeting/call requests
+3. **Follow-up Response** - Reply to status check-ins
+4. **Question Response** - Answer questions professionally
+5. **General Acknowledgment** - Generic acknowledgment
+
+## Auto-Send Rules
+
+When `--auto-send` is enabled:
+
+- Only emails with `priority_score > 0.7` are auto-sent
+- Spam and newsletters are never auto-replied
+- All replies are stored in database for review
+- Reply content is always logged
+
+## Database Schema
+
+SQLite database at `~/.openclaw/gmail_auto_reply.db`:
+
+**processed_emails table:**
+- message_id (primary key)
+- thread_id
+- sender, subject
+- category, sentiment
+- priority_score
+- reply_sent
+- processed_at
+
+**sent_replies table:**
+- original_message_id
+- reply_body
+- sent_at
+
+## Configuration Files
+
+- `~/.openclaw/gmail_credentials.json` - Google OAuth2 credentials
+- `~/.openclaw/gmail_token.pickle` - Cached authentication token
+- `~/.openclaw/gmail_auto_reply.db` - Processing database
+- `~/.openclaw/writing_style.json` - Learned writing style cache
+
+## CLI Reference
+
+```bash
+python3 scripts/gmail_agent.py [options]
+
+Options:
+  --client-name NAME    Your name for signatures (default: Me)
+  --max-emails N        Max emails to process (default: 20)
+  --auto-send           Auto-send high priority replies
+  --learn               Learn from sent emails first
+  --stats               Show statistics and exit
+```
+
+## Safety Features
+
+1. **Idempotency** - Emails tracked by message_id, never duplicated
+2. **Priority Filtering** - Low priority emails can be skipped
+3. **Draft Mode** - Default mode generates drafts without sending
+4. **Auto-Send Threshold** - Only high priority (>0.7) auto-sent
+5. **Category Exclusions** - Spam and newsletters ignored
+6. **Persistent Logging** - All actions logged to database
+
+## Example Output
+
+```
+✅ Processed 5 emails
+  📝 Draft [meeting_request] Re: Project kickoff meeting...
+  📤 Sent [urgent] Urgent: Server down...
+  📝 Draft [question] Question about pricing...
+  📝 Draft [follow_up] Following up on proposal...
+  📝 Draft [acknowledgment] Thank you for the call...
+```
+
+## Use Cases
+
+### Use Case 1: Executive Inbox Management
+Process 50+ daily emails, auto-reply to urgent ones, draft responses for others.
+
+### Use Case 2: Customer Support
+Auto-acknowledge support requests, prioritize negative sentiment emails.
+
+### Use Case 3: Meeting Coordination
+Respond to meeting requests with availability questions automatically.
+
+## Changelog
+
+### v2.0.0 (2026-02-25) - Complete Rewrite
+- Complete Python implementation with Gmail API
+- Smart categorization with keyword extraction
+- Sentiment analysis for prioritization
+- Writing style learning from sent emails
+- Template matching system
+- HTML + Plain-text multipart emails
+- SQLite database for tracking
+- CLI interface with argparse
+- Idempotency protection
+- Statistics and analytics
+
+### v1.0.0 (2026-02-18) - Initial Release
+- Basic template-based reply system
+- Manual draft generation
+- No automation

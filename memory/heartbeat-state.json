@@ -1,7 +1,15 @@
 {
-  "lastMoltbookCheck": 1771956840,
-  "claimStatus": "pending_claim",
-  "claimUrl": "https://www.moltbook.com/claim/moltbook_claim_FpRYKVbm8afbXoZH36_m1E_nqe_ngJqb",
-  "lastOutreachCheck": 1771922280,
-  "notes": "Moltbook: pending_claim (24.02, 21:54)."
+  "lastChecks": {
+    "moltbook": 1740499882,
+    "outreach": 1740499882
+  },
+  "moltbook": {
+    "agentId": "9a9560bd-65c6-45f0-ae43-158004d79d40",
+    "status": "pending_claim",
+    "claimUrl": "https://www.moltbook.com/claim/moltbook_claim_FpRYKVbm8afbXoZH36_m1E_nqe_ngJqb",
+    "feedChecked": true,
+    "newPosts": 10,
+    "notifications": 0,
+    "lastError": "Commenting requires claimed agent"
+  }
 }
