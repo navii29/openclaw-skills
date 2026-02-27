@@ -8,10 +8,17 @@ Komplette Accounting-Automation für den deutschen Markt: PDF → E-Rechnung →
 
 | Skill | Version | Funktion |
 |-------|---------|----------|
-| gobd-rechnungsvalidator | v2.0.0 | PDF Validierung mit OCR |
+| gobd-rechnungsvalidator | **v2.5.0** | PDF Validierung mit erweitertem OCR |
 | zugferd-generator | v1.0.0 | E-Rechnung (ZUGFeRD/XRechnung) |
 | datev-csv-export | v2.0.0 | DATEV Export mit Smart-Suggest |
 | sepa-xml-generator | v1.0.0 | SEPA Überweisung/Lastschrift |
+
+### v2.5 OCR-Verbesserungen
+- ✅ **Bildvorverarbeitung**: DPI-Optimierung, Kontrast, Schärfung, Binarisierung
+- ✅ **Mehrsprachige OCR**: DEU, ENG, FRA, ITA, SPA, NLD
+- ✅ **Adaptive Presets**: scanned, low_quality, invoice, fast, max_quality
+- ✅ **Automatische Spracherkennung**
+- ✅ **OCR-Konfidenz-Metriken**
 
 ## Workflow
 
@@ -166,6 +173,16 @@ brew install tesseract  # macOS
 | **Enterprise** | 799€/Monat | Unlimited, API, Support |
 
 ## Changelog
+
+### v1.1.0 (2025-02-25) - OCR-Upgrade
+- 🆕 **GoBD Validator v2.5** mit erweitertem OCR
+  - Bildvorverarbeitung (DPI, Kontrast, Schärfung, Binarisierung)
+  - Mehrsprachige Unterstützung (DE, EN, FR, IT, ES, NL)
+  - Adaptive OCR-Presets für verschiedene Dokumenttypen
+  - Automatische Spracherkennung
+  - OCR-Konfidenz-Metriken
+- 🆕 Unterstützung für internationale Rechnungsformate
+- 🆕 Verbesserte Erkennungsraten bei gescannten Dokumenten
 
 ### v1.0.0 (2025-02-25)
 - Initiale Suite-Veröffentlichung

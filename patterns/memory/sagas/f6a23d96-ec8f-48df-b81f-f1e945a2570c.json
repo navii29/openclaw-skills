@@ -1,0 +1,40 @@
+{
+  "sagaId": "f6a23d96-ec8f-48df-b81f-f1e945a2570c",
+  "sagaName": "email-processing",
+  "status": "completed",
+  "context": {
+    "email_id": "email-live-001",
+    "subject": "Dringend: Angebot f\u00fcr 100 Automatisierungen",
+    "sender": "procurement@enterprise.com",
+    "extract_result": {
+      "email_id": "email-live-001",
+      "subject": "Dringend: Angebot f\u00fcr 100 Automatisierungen",
+      "sender": "procurement@enterprise.com",
+      "body": "Hallo, ich interessiere mich f\u00fcr Ihre Automation-Dienste...",
+      "extracted_at": "2026-02-26T17:02:50.350638"
+    },
+    "categorize_result": {
+      "category": "lead",
+      "confidence": 0.95,
+      "categorized_at": "2026-02-26T17:02:50.350649"
+    },
+    "prioritize_result": {
+      "priority": "HIGH",
+      "reason": "Potential customer inquiry"
+    },
+    "route_result": {
+      "destination": "sales-immediate",
+      "action": "create_hubspot_deal"
+    },
+    "execute_result": {
+      "action": "create_hubspot_deal",
+      "destination": "sales-immediate",
+      "executed_at": "2026-02-26T17:02:50.350658",
+      "success": true
+    }
+  },
+  "steps": [],
+  "currentStep": 4,
+  "createdAt": "2026-02-26T17:02:50.350625Z",
+  "updatedAt": "2026-02-26T17:02:50.350660Z"
+}

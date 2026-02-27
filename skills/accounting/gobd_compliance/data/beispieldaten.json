@@ -1,0 +1,106 @@
+{
+  "beschreibung": "Beispieldaten für GoBD-Prüfung",
+  "gueltige_rechnungen": [
+    {
+      "rechnungsnr": "RE-2024-001",
+      "beschreibung": "Vollständige Standardrechnung",
+      "ausstellungsdatum": "2024-01-15",
+      "lieferdatum": "2024-01-10",
+      "steller_name": "Muster GmbH",
+      "steller_anschrift": "Musterstraße 1, 20095 Hamburg",
+      "steller_ustid": "DE123456789",
+      "empfaenger_name": "Kunde AG",
+      "empfaenger_anschrift": "Kundenweg 42, 10115 Berlin",
+      "positionen": [
+        {"bezeichnung": "Beratung", "menge": 10, "preis": 100.00, "steuersatz": 19},
+        {"bezeichnung": "Reisekosten", "menge": 1, "preis": 150.00, "steuersatz": 19}
+      ]
+    },
+    {
+      "rechnungsnr": "RE-2024-002",
+      "beschreibung": "Rechnung mit Steuernummer statt USt-IdNr",
+      "ausstellungsdatum": "2024-01-20",
+      "lieferdatum": "2024-01-18",
+      "steller_name": "Bäckerei Müller",
+      "steller_anschrift": "Brotweg 5, 80331 München",
+      "steller_steuernummer": "1234567890123",
+      "empfaenger_name": "Restaurant Schmidt",
+      "empfaenger_anschrift": "Gastroplatz 10, 80333 München",
+      "positionen": [
+        {"bezeichnung": "Brötchen", "menge": 100, "preis": 0.50, "steuersatz": 7},
+        {"bezeichnung": "Kuchen", "menge": 5, "preis": 25.00, "steuersatz": 7}
+      ]
+    },
+    {
+      "rechnungsnr": "RE-2024-003",
+      "beschreibung": "Steuerbefreite Exportlieferung",
+      "ausstellungsdatum": "2024-02-01",
+      "lieferdatum": "2024-01-25",
+      "steller_name": "Export GmbH",
+      "steller_anschrift": "Hafenstraße 99, 20457 Hamburg",
+      "steller_ustid": "DE987654321",
+      "empfaenger_name": "International Corp",
+      "empfaenger_anschrift": "123 Main St, New York, USA",
+      "positionen": [
+        {"bezeichnung": "Maschinen", "menge": 1, "preis": 50000.00, "steuersatz": 0}
+      ]
+    }
+  ],
+  "ungueltige_rechnungen": [
+    {
+      "rechnungsnr": "RE-004-FEHLER",
+      "beschreibung": "Fehlender Rechnungssteller",
+      "ausstellungsdatum": "2024-02-05",
+      "lieferdatum": "2024-02-01",
+      "steller_name": "",
+      "steller_anschrift": "Unbekannt",
+      "empfaenger_name": "Kunde AG",
+      "empfaenger_anschrift": "Berlin",
+      "erwartete_fehler": ["Name des leistenden Unternehmers"],
+      "positionen": [
+        {"bezeichnung": "Service", "menge": 1, "preis": 500.00, "steuersatz": 19}
+      ]
+    },
+    {
+      "rechnungsnr": "RE-005-FEHLER",
+      "beschreibung": "Fehlende Steuer-ID",
+      "ausstellungsdatum": "2024-02-10",
+      "lieferdatum": "2024-02-05",
+      "steller_name": "Problem GmbH",
+      "steller_anschrift": "Fehlerstraße 1",
+      "empfaenger_name": "Kunde AG",
+      "empfaenger_anschrift": "Berlin",
+      "erwartete_fehler": ["USt-IdNr oder Steuernummer"],
+      "positionen": [
+        {"bezeichnung": "Waren", "menge": 10, "preis": 50.00, "steuersatz": 19}
+      ]
+    },
+    {
+      "rechnungsnr": "",
+      "beschreibung": "Fehlende Rechnungsnummer",
+      "ausstellungsdatum": "2024-02-15",
+      "lieferdatum": "2024-02-10",
+      "steller_name": "Ohne Nummer GmbH",
+      "steller_anschrift": "Musterstraße 1",
+      "steller_ustid": "DE123456789",
+      "empfaenger_name": "Kunde AG",
+      "empfaenger_anschrift": "Berlin",
+      "erwartete_fehler": ["Rechnungsnummer"],
+      "positionen": [
+        {"bezeichnung": "Dienstleistung", "menge": 1, "preis": 1000.00, "steuersatz": 19}
+      ]
+    }
+  ],
+  "chronologie_test": {
+    "fortlaufend": ["RE-001", "RE-002", "RE-003", "RE-004", "RE-005"],
+    "mit_luecke": ["RE-001", "RE-002", "RE-004", "RE-005"],
+    "mit_doppelter": ["RE-001", "RE-002", "RE-002", "RE-003"],
+    "erwartete_luecke": ["RE-003"],
+    "erwartete_doppelte": ["RE-002"]
+  },
+  "hash_verifikation": {
+    "beschreibung": "Beispiel für Hash-Prüfung der Unveränderbarkeit",
+    "original_hash": "sha256:abc123...",
+    "pruefung": "Hash muss identisch bleiben wenn Rechnung unverändert"
+  }
+}

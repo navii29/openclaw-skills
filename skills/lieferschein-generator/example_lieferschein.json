@@ -1,0 +1,59 @@
+{
+  "lieferschein_nummer": "LS-2025-001",
+  "lieferschein_datum": "26.02.2025",
+  "lieferdatum": "28.02.2025",
+  "auftragsnummer": "A-2025-042",
+  "kundennummer": "K-1234",
+  "absender": {
+    "name": "NAVII Automation GmbH",
+    "zusatz": "Vertrieb",
+    "strasse": "Technologiepark 12",
+    "plz_ort": "10115 Berlin",
+    "telefon": "030 12345678",
+    "email": "info@navii-automation.de",
+    "steuernr": "DE123456789",
+    "ustid": "DE123456789"
+  },
+  "empfaenger": {
+    "name": "Musterfirma AG",
+    "zusatz": "Einkaufsabteilung",
+    "strasse": "Industriestraße 45",
+    "plz_ort": "20095 Hamburg",
+    "land": "Deutschland"
+  },
+  "positionen": [
+    {
+      "pos": 1,
+      "artikelnr": "LAPTOP-001",
+      "bezeichnung": "Business Laptop Pro 15\"",
+      "menge": 5,
+      "einheit": "Stk",
+      "seriennummern": ["SN123456789", "SN123456790", "SN123456791", "SN123456792", "SN123456793"],
+      "gewicht_kg": 2.1
+    },
+    {
+      "pos": 2,
+      "artikelnr": "DOCK-001",
+      "bezeichnung": "USB-C Docking Station",
+      "menge": 5,
+      "einheit": "Stk",
+      "gewicht_kg": 0.8
+    },
+    {
+      "pos": 3,
+      "artikelnr": "MONITOR-001",
+      "bezeichnung": "27\" 4K Monitor",
+      "menge": 3,
+      "einheit": "Stk",
+      "seriennummern": ["MON2025001", "MON2025002", "MON2025003"],
+      "gewicht_kg": 5.5
+    }
+  ],
+  "tracking": {
+    "nummer": "LS-2025-001",
+    "url": "https://tracking.navii-automation.de/LS-2025-001",
+    "dienstleister": "DHL"
+  },
+  "hinweise": "Bitte bei Transportschäden sofort melden. Gefahrgut: Nein. Waren verbleiben bis zur vollständigen Bezahlung Eigentum des Lieferers.",
+  "unterschrift_erforderlich": true
+}

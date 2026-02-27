@@ -1,0 +1,18 @@
+{
+  "eventId": "6f1e3c07-16e7-4299-8091-3d571d1db8c0",
+  "eventType": "lead.qualified",
+  "timestamp": "2026-02-26T17:02:50.028957Z",
+  "source": "lead-qualifier",
+  "payload": {
+    "email": "max.mustermann@beispiel.de",
+    "company": "Musterfirma GmbH",
+    "score": 85,
+    "aggregateId": "lead-001"
+  },
+  "correlationId": "6f1e3c07-16e7-4299-8091-3d571d1db8c0",
+  "causationId": null,
+  "metadata": {
+    "version": "1.0",
+    "retry_count": 0
+  }
+}

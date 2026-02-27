@@ -1,0 +1,18 @@
+{
+  "eventId": "fb7cd50f-47f2-4630-870c-dfc6abf9808c",
+  "eventType": "email.received",
+  "timestamp": "2026-02-26T17:03:57.845338Z",
+  "source": "inbox-ai",
+  "payload": {
+    "subject": "Anfrage: Automation f\u00fcr mein Unternehmen",
+    "sender": "max.mustermann@beispiel.de",
+    "body_preview": "Hallo, ich h\u00e4tte gerne ein Angebot f\u00fcr...",
+    "aggregateId": "msg-001"
+  },
+  "correlationId": "fb7cd50f-47f2-4630-870c-dfc6abf9808c",
+  "causationId": null,
+  "metadata": {
+    "version": "1.0",
+    "retry_count": 0
+  }
+}

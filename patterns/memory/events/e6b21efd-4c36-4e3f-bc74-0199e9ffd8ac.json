@@ -1,0 +1,18 @@
+{
+  "eventId": "e6b21efd-4c36-4e3f-bc74-0199e9ffd8ac",
+  "eventType": "email.received",
+  "timestamp": "2026-02-26T17:02:50.349312Z",
+  "source": "openclaw-patterns",
+  "payload": {
+    "subject": "Dringend: Angebot f\u00fcr 100 Automatisierungen",
+    "sender": "procurement@enterprise.com",
+    "body": "Wir ben\u00f6tigen ein Angebot f\u00fcr...",
+    "aggregateId": "email-live-001"
+  },
+  "correlationId": "e6b21efd-4c36-4e3f-bc74-0199e9ffd8ac",
+  "causationId": null,
+  "metadata": {
+    "version": "1.0",
+    "retry_count": 0
+  }
+}

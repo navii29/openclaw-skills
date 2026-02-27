@@ -1,0 +1,40 @@
+{
+  "sagaId": "832b639c-f910-466e-bca3-ab5208a737c7",
+  "sagaName": "email-processing",
+  "status": "completed",
+  "context": {
+    "email_id": "email-123",
+    "subject": "Re: Anfrage Automation",
+    "sender": "ceo@enterprise.com",
+    "extract_result": {
+      "email_id": "email-123",
+      "subject": "Re: Anfrage Automation",
+      "sender": "ceo@enterprise.com",
+      "body": "Hallo, ich interessiere mich f\u00fcr Ihre Automation-Dienste...",
+      "extracted_at": "2026-02-26T17:02:50.030362"
+    },
+    "categorize_result": {
+      "category": "general",
+      "confidence": 0.75,
+      "categorized_at": "2026-02-26T17:02:50.030369"
+    },
+    "prioritize_result": {
+      "priority": "LOW",
+      "reason": "General inquiry"
+    },
+    "route_result": {
+      "destination": "archive",
+      "action": "auto_reply"
+    },
+    "execute_result": {
+      "action": "auto_reply",
+      "destination": "archive",
+      "executed_at": "2026-02-26T17:02:50.030377",
+      "success": true
+    }
+  },
+  "steps": [],
+  "currentStep": 4,
+  "createdAt": "2026-02-26T17:02:50.030351Z",
+  "updatedAt": "2026-02-26T17:02:50.030380Z"
+}

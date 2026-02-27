@@ -108,6 +108,59 @@ Siehe TOOLS.md für:
 
 ---
 
+## Automation Integration (Learning Session 2: 2026-02-26)
+
+### Was ich gelernt habe
+
+1. **Bidirectional Bridge Pattern**
+   - Nicht nur n8n → OpenClaw (sessions_spawn)
+   - Sondern auch OpenClaw → n8n (webhook commands)
+   - Ermöglicht echte "Agent Action" Fähigkeiten
+   - Unified API für alle externen Systeme
+
+2. **Command Router Pattern**
+   - Ein zentraler n8n Webhook empfängt alle Commands
+   - Switch-Node routed zu spezialisierten Sub-Flows
+   - Jeder Command = ein klar definierter Vertrag
+   - Einfaches Hinzufügen neuer Commands
+
+3. **Skill-First Architecture**
+   - Python-Skill als Wrapper für HTTP calls
+   - Convenience-Funktionen für häufige Operationen
+   - Error Handling und Retry-Logik zentralisiert
+   - Type Hints für bessere IDE-Unterstützung
+
+### Integration: Agent Command Center
+
+**Konzept:** OpenClaw kann jetzt aktiv Systeme steuern:
+- CRM Updates (HubSpot)
+- Slack Notifications
+- Email Versand
+- Calendar Blocking
+- Notion Page Creation
+
+**Implementierung:**
+- `skills/n8n_bridge/skill.py` - Python Client
+- `n8n-workflows/06-openclaw-command-router.json` - n8n Workflow
+- `INTEGRATION-AGENT-COMMAND-CENTER.md` - Dokumentation
+
+### Use Cases für Kunden
+
+| Use Case | Commands | Zeitersparnis |
+|----------|----------|---------------|
+| Lead-Qualifizierung | crm_create + slack_notify + email_send | 5h/Woche |
+| Meeting-Prep | research + notion_create + calendar_block | 3h/Woche |
+| Kunden-Support | sentiment + crm_update + escalation | 2h/Woche |
+
+### Pricing
+- **Starter:** €1.500 Setup + €200/Monat
+- **Professional:** €2.500 Setup + €400/Monat
+- **Enterprise:** €5.000 Setup + €800/Monat
+
+---
+
 ## Letzte Updates
+
+**2026-02-26**: Learning Session 2 - Bidirectional n8n Bridge implementiert. POC komplett, bereit für Deployment.
 
 **2026-02-24**: Deep-Dive Session zu Advanced Patterns abgeschlossen. Prototyp läuft. Migration-Guides erstellt.

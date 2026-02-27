@@ -1,0 +1,112 @@
+{
+  "beschreibung": "Beispieldaten für Rechnungs-Matching",
+  "rechnungen": [
+    {
+      "nr": "RE-2024-001",
+      "kunde_id": "K001",
+      "kunde_name": "Muster GmbH",
+      "betrag": 1190.00,
+      "datum": "2024-01-05",
+      "faellig": "2024-02-05",
+      "status": "offen"
+    },
+    {
+      "nr": "RE-2024-002",
+      "kunde_id": "K002",
+      "kunde_name": "Beispiel AG",
+      "betrag": 2380.00,
+      "datum": "2024-01-10",
+      "faellig": "2024-02-10",
+      "status": "offen"
+    },
+    {
+      "nr": "RE-2024-003",
+      "kunde_id": "K003",
+      "kunde_name": "Test OHG",
+      "betrag": 595.00,
+      "datum": "2024-01-15",
+      "faellig": "2024-02-15",
+      "status": "offen"
+    },
+    {
+      "nr": "RE-2024-004",
+      "kunde_id": "K001",
+      "kunde_name": "Muster GmbH",
+      "betrag": 4760.00,
+      "datum": "2024-01-20",
+      "faellig": "2024-02-20",
+      "status": "offen"
+    },
+    {
+      "nr": "RE-2024-005",
+      "kunde_id": "K004",
+      "kunde_name": "NewCo KG",
+      "betrag": 1785.00,
+      "datum": "2024-01-25",
+      "faellig": "2024-02-25",
+      "status": "offen"
+    }
+  ],
+  "zahlungen": [
+    {
+      "datum": "2024-01-12",
+      "betrag": 1190.00,
+      "zweck": "Rechnung RE-2024-001",
+      "referenz": "K001-20240112",
+      "erwartet": "RE-2024-001"
+    },
+    {
+      "datum": "2024-01-18",
+      "betrag": 2380.00,
+      "zweck": "Zahlung fuer RE-2024-002",
+      "referenz": "K002-20240118",
+      "erwartet": "RE-2024-002"
+    },
+    {
+      "datum": "2024-01-22",
+      "betrag": 595.00,
+      "zweck": "Rg: RE-2024-003 - Danke",
+      "referenz": "K003-20240122",
+      "erwartet": "RE-2024-003"
+    },
+    {
+      "datum": "2024-01-25",
+      "betrag": 2000.00,
+      "zweck": "RE-2024-004 Teilzahlung",
+      "referenz": "K001-20240125",
+      "erwartet": "RE-2024-004 (Teil)"
+    },
+    {
+      "datum": "2024-01-28",
+      "betrag": 1785.00,
+      "zweck": "Rechnungsbegleichung",
+      "referenz": "K004-20240128",
+      "erwartet": "RE-2024-005 (Fuzzy)"
+    },
+    {
+      "datum": "2024-01-30",
+      "betrag": 1190.00,
+      "zweck": "RE-2024-001 nochmal - Fehler",
+      "referenz": "K001-20240130",
+      "erwartet": "DOPPELT"
+    },
+    {
+      "datum": "2024-02-01",
+      "betrag": 999.00,
+      "zweck": "Unbekannte Zahlung",
+      "referenz": "UNBEKANNT",
+      "erwartet": "UNMATCHED"
+    }
+  ],
+  "erwartetes_ergebnis": {
+    "gematcht": 5,
+    "unmatched": 1,
+    "doppelte": 1,
+    "match_rate": 0.71
+  },
+  "datev_export": {
+    "konto_bank": "1200",
+    "konto_erloese": "8400",
+    "beschreibung": "Buchungssätze für DATEV Import"
+  }
+}

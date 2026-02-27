@@ -1,0 +1,27 @@
+{
+  "name": "competitor-intelligence",
+  "version": "1.0.0",
+  "description": "Automated competitor monitoring with AI-powered insights",
+  "author": "Navii Automation",
+  "price": {
+    "setup": 299,
+    "monthly": 149,
+    "currency": "EUR"
+  },
+  "features": [
+    "Price monitoring",
+    "Homepage change detection",
+    "News mention tracking",
+    "Telegram alerts",
+    "AI-powered insights",
+    "Weekly reports"
+  ],
+  "target_audience": [
+    "E-commerce shops",
+    "SaaS companies",
+    "Marketing agencies",
+    "Business consultants"
+  ],
+  "status": "production",
+  "created": "2026-02-26"
+}

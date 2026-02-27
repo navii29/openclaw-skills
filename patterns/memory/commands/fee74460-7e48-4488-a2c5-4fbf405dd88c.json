@@ -1,0 +1,10 @@
+{
+  "commandId": "fee74460-7e48-4488-a2c5-4fbf405dd88c",
+  "commandType": "email.categorize",
+  "aggregateId": "email-001",
+  "payload": {
+    "category": "lead",
+    "confidence": 0.95
+  },
+  "timestamp": "2026-02-26T17:03:57.846855Z"
+}

@@ -1,0 +1,23 @@
+{
+  "accounts": [
+    {
+      "name": "support",
+      "provider": "ionos",
+      "email_username": "support@example.de",
+      "email_password": "YOUR_PASSWORD",
+      "from_name": "Support Team",
+      "auto_reply_enabled": true,
+      "calendly_link": "https://calendly.com/support",
+      "enabled": true
+    },
+    {
+      "name": "sales",
+      "provider": "gmail",
+      "email_username": "sales@example.com",
+      "email_password": "YOUR_APP_PASSWORD",
+      "from_name": "Sales Team",
+      "auto_reply_enabled": true,
+      "enabled": true
+    }
+  ]
+}

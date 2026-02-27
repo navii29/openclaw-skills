@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navii Automation – Operative Agenten für E-Commerce</title>
+    <meta name="description" content="Wir bauen OpenClaw-Agenten, die repetitive E-Commerce-Prozesse automatisieren. Retouren, Lieferanten-Kommunikation, Inventar-Monitoring.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: #fff;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        
+        /* Header */
+        header {
+            padding: 20px 0;
+            border-bottom: 1px solid #eaeaea;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-decoration: none;
+        }
+        .logo span { color: #0066cc; }
+        nav a {
+            margin-left: 32px;
+            color: #666;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        nav a:hover { color: #0066cc; }
+        
+        /* Hero */
+        .hero {
+            padding: 160px 0 100px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: clamp(40px, 5vw, 64px);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+        }
+        .hero h1 em {
+            color: #0066cc;
+            font-style: normal;
+        }
+        .hero p {
+            font-size: 20px;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #0066cc;
+            color: white;
+            padding: 16px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        .cta-button:hover {
+            background: #0052a3;
+            transform: translateY(-2px);
+        }
+        .cta-secondary {
+            display: inline-block;
+            color: #0066cc;
+            margin-left: 20px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        /* Problem/Solution */
+        .section {
+            padding: 100px 0;
+        }
+        .section-title {
+            font-size: 36px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .section-subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 60px;
+        }
+        
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+            margin-bottom: 80px;
+        }
+        .problem-card {
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 32px;
+            transition: all 0.2s;
+        }
+        .problem-card:hover {
+            border-color: #0066cc;
+            box-shadow: 0 4px 20px rgba(0,102,204,0.1);
+        }
+        .problem-card h3 {
+            font-size: 20px;
+            margin-bottom: 12px;
+            color: #dc2626;
+        }
+        .problem-card p { color: #666; }
+        
+        /* Services */
+        .services {
+            background: #f8f9fa;
+        }
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 32px;
+        }
+        .service-card {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .service-card .icon {
+            font-size: 40px;
+            margin-bottom: 20px;
+        }
+        .service-card h3 {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        .service-card p { color: #666; margin-bottom: 20px; }
+        .service-card .price {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0066cc;
+        }
+        .service-card .price span {
+            font-size: 14px;
+            color: #999;
+            font-weight: 400;
+        }
+        
+        /* How it works */
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+        .step {
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+        }
+        .step-number {
+            width: 48px;
+            height: 48px;
+            background: #0066cc;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 auto 20px;
+        }
+        .step h4 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        .step p {
+            color: #666;
+            font-size: 15px;
+        }
+        
+        /* CTA Section */
+        .cta-section {
+            background: #1a1a1a;
+            color: white;
+            text-align: center;
+            padding: 100px 0;
+        }
+        .cta-section h2 {
+            font-size: 40px;
+            margin-bottom: 20px;
+        }
+        .cta-section p {
+            color: #aaa;
+            font-size: 18px;
+            margin-bottom: 40px;
+        }
+        .cta-section .cta-button {
+            background: white;
+            color: #1a1a1a;
+        }
+        .cta-section .cta-button:hover {
+            background: #f0f0f0;
+        }
+        
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #eaeaea;
+        }
+        footer a { color: #0066cc; text-decoration: none; }
+        
+        /* Mobile */
+        @media (max-width: 768px) {
+            nav { display: none; }
+            .hero { padding: 120px 0 60px; }
+            .cta-secondary { display: block; margin: 20px 0 0; }
+            .steps { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container header-content">
+            <a href="#" class="logo">Navii<span>.</span></a>
+            <nav>
+                <a href="#services">Leistungen</a>
+                <a href="#ablauf">Ablauf</a>
+                <a href="mailto:hello@navii-automation.com">Kontakt</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Wir bauen <em>Agenten</em>,<br>die Arbeit übernehmen.</h1>
+            <p>Operative OpenClaw-Agenten für E-Commerce. Keine Beratung, keine Workshops – wir liefern funktionierende Systeme, die von Tag 1 produktiv arbeiten.</p>
+            <a href="#services" class="cta-button">Angebot ansehen</a>
+            <a href="mailto:hello@navii-automation.com" class="cta-secondary">oder direkt kontaktieren →</a>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title">Das Problem</h2>
+            <p class="section-subtitle">Ihr Team verbringt zu viel Zeit mit repetitivem Kram statt mit strategischer Arbeit.</p>
+            
+            <div class="problem-grid">
+                <div class="problem-card">
+                    <h3>🔥 15-20h/Woche für Retouren</h3>
+                    <p>Manuelle Daten-Eingaben, E-Mail-Tracking, Status-Rückfragen. Jede Retoure durchläuft 5-7 menschliche Handgriffe.</p>
+                </div>
+                <div class="problem-card">
+                    <h3>🔥 Lieferanten-Chaos</h3>
+                    <p>Bestellungen, Nachverfolgung, Terminabstimmung per E-Mail. Keine zentrale Übersicht, keine Automation.</p>
+                </div>
+                <div class="problem-card">
+                    <h3>🔥 Inventar-Blindflug</h3>
+                    <p>Bestandswarnungen zu spät, Nachbestellungen vergessen, Überbestände binden Kapital.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section services" id="services">
+        <div class="container">
+            <h2 class="section-title">Unsere Agenten</h2>
+            <p class="section-subtitle">Fixpreis. 10 Tage Bauzeit. Funktioniert oder Geld zurück.</p>
+            
+            <div class="service-grid">
+                <div class="service-card">
+                    <div class="icon">📦</div>
+                    <h3>Retouren-Agent</h3>
+                    <p>Automatisiert komplette Retouren-Abwicklung: E-Mail-Eingang, Daten-Extraktion, Status-Tracking, Kunden-Kommunikation, ERP-Rückbuchung.</p>
+                    <div class="price">€4.500 <span>einmalig</span></div>
+                </div>
+                
+                <div class="service-card">
+                    <div class="icon">🚚</div>
+                    <h3>Lieferanten-Agent</h3>
+                    <p>Überwacht Bestellungen, verfolgt Sendungen, erinnert an Termine, dokumentiert Kommunikation – selbstständig und zuverlässig.</p>
+                    <div class="price">€5.500 <span>einmalig</span></div>
+                </div>
+                
+                <div class="service-card">
+                    <div class="icon">📊</div>
+                    <h3>Inventar-Agent</h3>
+                    <p>Überwacht Bestände in Echtzeit, sendet Warnungen bei niedrigem Stock, löst Nachbestellungen aus, erstellt Reports.</p>
+                    <div class="price">€3.500 <span>einmalig</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="ablauf">
+        <div class="container">
+            <h2 class="section-title">So funktioniert's</h2>
+            <p class="section-subtitle">Von Null auf produktiv in 10 Tagen.</p>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h4>Kickoff</h4>
+                    <p>30-minütiger Call zur Prozess-Besprechung und Zugangseinrichtung.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h4>Setup</h4>
+                    <p>Tag 1–3: System-Integration und Konfiguration nach Ihren Workflows.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h4>Test</h4>
+                    <p>Tag 4–7: Pilot mit echten Daten, Feinschliff, Ihr Feedback.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h4>Go-Live</h4>
+                    <p>Tag 8–10: Produktivbetrieb, Übergabe, 30 Tage Support inklusive.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <div class="container">
+            <h2>Bereit, repetitive Arbeit abzugeben?</h2>
+            <p>Kostenloser 15-minütiger Call. Wir schauen uns Ihre Prozesse an und sagen ehrlich, ob sich Automation lohnt.</p>
+            <a href="mailto:hello@navii-automation.com?subject=Termin%20anfragen" class="cta-button">Termin vereinbaren</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p><strong>Navii Automation</strong> – Gegründet 2025</p>
+            <p><a href="mailto:hello@navii-automation.com">hello@navii-automation.com</a></p>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "commandId": "f8a9bfd6-1a0f-458c-97f3-7054f11bb408",
+  "commandType": "email.receive",
+  "aggregateId": "email-live-001",
+  "payload": {
+    "subject": "Dringend: Angebot f\u00fcr 100 Automatisierungen",
+    "sender": "procurement@enterprise.com",
+    "body": "Wir ben\u00f6tigen ein Angebot f\u00fcr..."
+  },
+  "timestamp": "2026-02-26T17:02:50.350432Z"
+}

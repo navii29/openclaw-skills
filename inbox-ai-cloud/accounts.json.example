@@ -1,0 +1,30 @@
+{
+  "accounts": [
+    {
+      "name": "support",
+      "email": "support@yourdomain.com",
+      "password": "your-app-password",
+      "provider": "auto",
+      "from_name": "Support Team",
+      "enabled": true,
+      "auto_reply": true,
+      "escalation_threshold": 0.7,
+      "max_replies_per_hour": 20,
+      "calendly_link": "https://calendly.com/your-link",
+      "escalation_phone": "+49-123-456789"
+    },
+    {
+      "name": "sales",
+      "email": "sales@yourdomain.com",
+      "password": "your-app-password",
+      "provider": "auto",
+      "from_name": "Sales Team",
+      "enabled": true,
+      "auto_reply": true,
+      "escalation_threshold": 0.8,
+      "max_replies_per_hour": 30,
+      "calendly_link": "https://calendly.com/your-sales-link",
+      "escalation_phone": "+49-123-456789"
+    }
+  ]
+}

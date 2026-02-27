@@ -73,6 +73,11 @@ Things like:
 - **SMTP Server:** smtp.gmail.com:587 (TLS)
 - **Status:** ✅ AKTIV - Smart Email Automation läuft
 
+### Tavily Search API
+- **API Key:** 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
+- **Tier:** Developer (Free: 1,000 calls/month)
+- **Status:** ✅ ACTIVE - Skill ready for testing
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.

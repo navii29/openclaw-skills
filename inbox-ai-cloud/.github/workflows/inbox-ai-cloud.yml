@@ -1,0 +1,122 @@
+name: Inbox AI Cloud - Universal Email Automation
+
+on:
+  schedule:
+    # Run every 10 minutes during business hours (Mon-Fri, 6am-8pm UTC)
+    # Covers EU morning through US afternoon
+    - cron: '*/10 6-20 * * 1-5'
+  
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Processing mode'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - monitor
+          - hybrid
+          - auto
+      accounts:
+        description: 'Specific accounts to process (comma-separated, or "all")'
+        required: false
+        default: 'all'
+
+env:
+  STATE_DIR: ${{ github.workspace }}/.state
+
+jobs:
+  process-inbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Restore state cache
+        uses: actions/cache@v4
+        with:
+          path: .state
+          key: inbox-ai-state-${{ github.run_id }}
+          restore-keys: |
+            inbox-ai-state-
+      
+      - name: Create state directory
+        run: mkdir -p .state
+      
+      - name: Configure accounts from secrets
+        run: |
+          cat > accounts.json << 'EOF'
+          {
+            "accounts": [
+              {
+                "name": "${{ secrets.ACCOUNT_1_NAME || 'primary' }}",
+                "email": "${{ secrets.ACCOUNT_1_EMAIL }}",
+                "password": "${{ secrets.ACCOUNT_1_PASSWORD }}",
+                "provider": "${{ secrets.ACCOUNT_1_PROVIDER || 'auto' }}",
+                "from_name": "${{ secrets.ACCOUNT_1_FROM_NAME || 'Your Team' }}",
+                "enabled": ${{ secrets.ACCOUNT_1_ENABLED || 'true' }},
+                "auto_reply": ${{ secrets.ACCOUNT_1_AUTO_REPLY || 'true' }},
+                "escalation_threshold": ${{ secrets.ACCOUNT_1_ESCALATION_THRESHOLD || '0.7' }},
+                "max_replies_per_hour": ${{ secrets.ACCOUNT_1_MAX_REPLIES || '20' }},
+                "calendly_link": "${{ secrets.ACCOUNT_1_CALENDLY_LINK || '' }}",
+                "escalation_phone": "${{ secrets.ACCOUNT_1_PHONE || '' }}"
+              }
+              ${{ secrets.ACCOUNT_2_EMAIL && ',' }}
+              ${{ secrets.ACCOUNT_2_EMAIL && format('{{
+                "name": "{0}",
+                "email": "{1}",
+                "password": "{2}",
+                "provider": "{3}",
+                "from_name": "{4}",
+                "enabled": {5},
+                "auto_reply": {6},
+                "escalation_threshold": {7},
+                "max_replies_per_hour": {8},
+                "calendly_link": "{9}",
+                "escalation_phone": "{10}"
+              }}', 
+                secrets.ACCOUNT_2_NAME || 'secondary',
+                secrets.ACCOUNT_2_EMAIL,
+                secrets.ACCOUNT_2_PASSWORD,
+                secrets.ACCOUNT_2_PROVIDER || 'auto',
+                secrets.ACCOUNT_2_FROM_NAME || 'Your Team',
+                secrets.ACCOUNT_2_ENABLED || 'true',
+                secrets.ACCOUNT_2_AUTO_REPLY || 'true',
+                secrets.ACCOUNT_2_ESCALATION_THRESHOLD || '0.7',
+                secrets.ACCOUNT_2_MAX_REPLIES || '20',
+                secrets.ACCOUNT_2_CALENDLY_LINK || '',
+                secrets.ACCOUNT_2_PHONE || '') }}
+            ]
+          }
+          EOF
+          
+          echo "Accounts configuration created"
+      
+      - name: Run Inbox AI Cloud
+        env:
+          STATE_DIR: ${{ github.workspace }}/.state
+        run: |
+          MODE="${{ github.event.inputs.mode || 'auto' }}"
+          echo "Running in $MODE mode..."
+          python3 inbox_processor_cloud.py --mode=$MODE --config=accounts.json
+      
+      - name: Save state cache
+        uses: actions/cache@v4
+        with:
+          path: .state
+          key: inbox-ai-state-${{ github.run_id }}
+      
+      - name: Upload processing log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inbox-ai-log-${{ github.run_id }}
+          path: .state/
+          retention-days: 30

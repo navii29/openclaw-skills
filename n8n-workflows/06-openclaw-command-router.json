@@ -1,0 +1,350 @@
+{
+  "name": "OpenClaw Command Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "openclaw-command",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Command Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "openclaw-command"
+    },
+    {
+      "parameters": {
+        "jsCode": "// API Key Validation\nconst apiKey = $input.first().json.headers['x-api-key'] || $input.first().json.headers['X-API-Key'];\nif (apiKey !== $env.BRIDGE_API_KEY) {\n  return [{\n    json: {\n      status: 'error',\n      message: 'Unauthorized - Invalid API Key'\n    }\n  }];\n}\n\n// Return validated payload\nreturn $input.all();"
+      },
+      "name": "Validate API Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "value": "crm_update",
+              "output": 0
+            },
+            {
+              "value": "crm_create",
+              "output": 1
+            },
+            {
+              "value": "slack_notify",
+              "output": 2
+            },
+            {
+              "value": "email_send",
+              "output": 3
+            },
+            {
+              "value": "calendar_block",
+              "output": 4
+            },
+            {
+              "value": "notion_create",
+              "output": 5
+            },
+            {
+              "value": "ping",
+              "output": 6
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Route Command",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "jsonPayload": "={{ {\"status\": \"pong\", \"timestamp\": new Date().toISOString()} }}"
+      },
+      "name": "Ping Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [850, 50]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://api.hubapi.com/crm/v3/objects/' + $json.body.payload.object_type + 's/' + $json.body.payload.object_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "properties": "={{ $json.body.payload.properties }}"
+        },
+        "options": {}
+      },
+      "name": "Update HubSpot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/deals",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "properties": "={{ $json.body.payload.properties }}"
+        },
+        "options": {}
+      },
+      "name": "Create HubSpot Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $json.body.payload.channel }}",
+        "text": "={{ $json.body.payload.text }}",
+        "blocks": "={{ JSON.stringify($json.body.payload.blocks) }}"
+      },
+      "name": "Send Slack Message",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.body.payload.from || 'kontakt@navii-automation.de' }}",
+        "toEmail": "={{ $json.body.payload.to }}",
+        "subject": "={{ $json.body.payload.subject }}",
+        "text": "={{ $json.body.payload.body }}",
+        "options": {}
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "calendar": "primary",
+        "start": "={{ $json.body.payload.start }}",
+        "end": "={{ new Date(new Date($json.body.payload.start).getTime() + ($json.body.payload.duration || 30) * 60000).toISOString() }}",
+        "additionalFields": {
+          "attendees": "={{ $json.body.payload.attendees }}",
+          "summary": "={{ $json.body.payload.title }}"
+        }
+      },
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [850, 550]
+    },
+    {
+      "parameters": {
+        "databasePageId": "={{ $json.body.payload.database_id }}",
+        "properties": "={{ $json.body.payload.properties }}"
+      },
+      "name": "Create Notion Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [850, 650]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format success response\nconst input = $input.first().json;\nconst command = input.body.command;\n\nreturn [{\n  json: {\n    status: 'success',\n    command: command,\n    processed_at: new Date().toISOString(),\n    result: input.httpResponse || { executed: true }\n  }\n}];"
+      },
+      "name": "Format Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "jsonPayload": "={{ JSON.stringify($json) }}"
+      },
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1300, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Error handling\nconst error = $input.first().json.error || {};\n\nreturn [{\n  json: {\n    status: 'error',\n    message: error.message || 'Unknown error',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 550]
+    }
+  ],
+  "connections": {
+    "Command Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate API Key": {
+      "main": [
+        [
+          {
+            "node": "Route Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Command": {
+      "main": [
+        [
+          {
+            "node": "Update HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create HubSpot Deal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Notion Page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ping Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update HubSpot": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create HubSpot Deal": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Page": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "date": "2026-02-26",
+  "totalEmails": 42,
+  "highPriority": 5,
+  "categories": {
+    "lead": 3,
+    "support": 8,
+    "general": 31
+  }
+}

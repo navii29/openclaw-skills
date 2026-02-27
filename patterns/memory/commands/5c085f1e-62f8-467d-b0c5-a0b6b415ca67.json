@@ -1,0 +1,11 @@
+{
+  "commandId": "5c085f1e-62f8-467d-b0c5-a0b6b415ca67",
+  "commandType": "email.receive",
+  "aggregateId": "email-001",
+  "payload": {
+    "subject": "Angebot angefordert",
+    "sender": "kunde@firma.de",
+    "body": "Bitte senden Sie mir ein Angebot..."
+  },
+  "timestamp": "2026-02-26T17:02:50.029524Z"
+}

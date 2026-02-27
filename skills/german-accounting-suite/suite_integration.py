@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 # Import Skills (angenommen sie sind im PYTHONPATH)
 try:
-    from gobd_validator_v2 import GoBDValidator, ValidationResult
+    from gobd_validator_v25 import EnhancedGoBDValidator, ValidationResult
     from zugferd_generator import ZUGFeRDGenerator, Invoice, InvoiceItem, Party
     from datev_export_v2 import DATEVExporter, SmartAccountSuggestor
     from sepa_generator import SEPAGenerator, CreditTransfer, DirectDebit
@@ -33,6 +33,9 @@ class AccountingWorkflowResult:
     sepa_path: Optional[str]
     extracted_data: Dict
     errors: List[str]
+    ocr_used: bool = False
+    ocr_language: str = ""
+    ocr_confidence: float = 0.0
     
     def summary(self) -> str:
         """Text-Zusammenfassung"""
@@ -40,6 +43,8 @@ class AccountingWorkflowResult:
             f"📄 PDF: {self.pdf_path}",
             f"   Valid: {'✅' if self.is_valid else '❌'}",
         ]
+        if self.ocr_used:
+            lines.append(f"   OCR: {self.ocr_language} ({self.ocr_confidence:.0%})")
         if self.zugferd_path:
             lines.append(f"   ZUGFeRD: ✅ {self.zugferd_path}")
         if self.datev_path:
@@ -56,24 +61,49 @@ class GermanAccountingSuite:
     Hauptklasse für die German Accounting Suite.
     
     Kombiniert alle Accounting-Skills zu einem Workflow:
-    1. PDF validieren (GoBD)
+    1. PDF validieren (GoBD) mit erweitertem OCR
     2. E-Rechnung generieren (ZUGFeRD)
     3. Buchhaltung exportieren (DATEV)
     4. Zahlung vorbereiten (SEPA)
     """
     
-    VERSION = "1.0.0"
+    VERSION = "1.1.0"
     
-    def __init__(self, use_ocr: bool = True, smart_suggest: bool = True):
+    def __init__(
+        self,
+        use_ocr: bool = True,
+        smart_suggest: bool = True,
+        ocr_preset: str = 'invoice',
+        ocr_languages: List[str] = None,
+        dpi: int = 300
+    ):
+        """
+        Args:
+            use_ocr: OCR aktivieren?
+            smart_suggest: Smart-Suggest für DATEV?
+            ocr_preset: OCR-Preset ('scanned', 'low_quality', 'invoice', 'fast', 'max_quality')
+            ocr_languages: Sprachen für OCR (z.B. ['deu', 'eng', 'fra'])
+            dpi: DPI für OCR-Konvertierung
+        """
         if not SUITE_AVAILABLE:
             raise RuntimeError("Accounting Suite Module nicht verfügbar")
         
-        self.validator = GoBDValidator(use_ocr=use_ocr)
+        self.validator = EnhancedGoBDValidator(
+            use_ocr=use_ocr,
+            ocr_preset=ocr_preset,
+            ocr_languages=ocr_languages or ['deu', 'eng'],
+            dpi=dpi
+        )
         self.zugferd_generator = ZUGFeRDGenerator()
         self.datev_exporter = DATEVExporter(smart_suggest=smart_suggest)
         self.sepa_generator = SEPAGenerator()
         
         self.errors: List[str] = []
+        self.ocr_config = {
+            'preset': ocr_preset,
+            'languages': ocr_languages or ['deu', 'eng'],
+            'dpi': dpi
+        }
     
     def process_invoice(
         self,
@@ -121,10 +151,15 @@ class GermanAccountingSuite:
                 datev_path=None,
                 sepa_path=None,
                 extracted_data=validation.extracted_data,
-                errors=self.errors
+                errors=self.errors,
+                ocr_used=validation.ocr_used,
+                ocr_language=validation.ocr_language,
+                ocr_confidence=validation.ocr_confidence
             )
         
         print(f"   ✅ Valid ({validation.score}/{validation.max_score} Punkte)")
+        if validation.ocr_used:
+            print(f"      OCR: {validation.ocr_language} ({validation.ocr_confidence:.0%})")
         
         # Schritt 2: ZUGFeRD generieren
         if generate_zugferd and validation.zugferd_compatible:
@@ -218,7 +253,10 @@ class GermanAccountingSuite:
             datev_path=result_paths['datev'],
             sepa_path=result_paths['sepa'],
             extracted_data=validation.extracted_data,
-            errors=self.errors
+            errors=self.errors,
+            ocr_used=validation.ocr_used,
+            ocr_language=validation.ocr_language,
+            ocr_confidence=validation.ocr_confidence
         )
     
     def batch_process(
@@ -244,6 +282,8 @@ class GermanAccountingSuite:
         results = []
         
         print(f"🔄 Batch-Verarbeitung: {len(pdf_files)} PDFs")
+        print(f"   OCR-Preset: {self.ocr_config['preset']}")
+        print(f"   Sprachen: {', '.join(self.ocr_config['languages'])}")
         print("="*50)
         
         for i, pdf_path in enumerate(pdf_files, 1):
@@ -259,11 +299,13 @@ class GermanAccountingSuite:
         valid_count = sum(1 for r in results if r.is_valid)
         zugferd_count = sum(1 for r in results if r.zugferd_path)
         datev_count = sum(1 for r in results if r.datev_path)
+        ocr_count = sum(1 for r in results if r.extracted_data.get('ocr_used', False))
         
         print(f"Geprüft:     {len(results)}")
         print(f"Valide:      {valid_count} ✅")
         print(f"ZUGFeRD:     {zugferd_count} 🧾")
         print(f"DATEV:       {datev_count} 📊")
+        print(f"OCR genutzt: {ocr_count} 🔍")
         
         return results
 
@@ -272,19 +314,45 @@ class GermanAccountingSuite:
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='German Accounting Suite')
+    parser = argparse.ArgumentParser(
+        description='German Accounting Suite v1.1',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+OCR Presets:
+  scanned      - Optimal für gescannte Dokumente (300 DPI)
+  low_quality  - Für schlechte Scan-Qualität (400 DPI)
+  invoice      - Für mehrsprachige Rechnungen (Standard)
+  fast         - Schnelle Verarbeitung (150 DPI)
+  max_quality  - Maximale Qualität (langsam)
+
+Beispiele:
+  %(prog)s rechnung.pdf --iban DE89370400440532013000
+  %(prog)s gescannte_rechnungen/ --batch --preset scanned --lang deu eng
+  %(prog)s international/ --batch --preset invoice --lang deu eng fra
+        """
+    )
     parser.add_argument('pdf', help='PDF-Datei oder Ordner')
     parser.add_argument('--output', '-o', default='./output', help='Ausgabeverzeichnis')
     parser.add_argument('--iban', help='Kreditor-IBAN für SEPA')
     parser.add_argument('--batch', action='store_true', help='Batch-Modus')
     parser.add_argument('--no-ocr', action='store_true', help='OCR deaktivieren')
     parser.add_argument('--no-smart', action='store_true', help='Smart-Suggest deaktivieren')
+    parser.add_argument('--preset', default='invoice',
+                       choices=['scanned', 'low_quality', 'invoice', 'fast', 'max_quality'],
+                       help='OCR-Preset (Standard: invoice)')
+    parser.add_argument('--lang', nargs='+', default=['deu', 'eng'],
+                       help='Sprachen für OCR (z.B. deu eng fra)')
+    parser.add_argument('--dpi', type=int, default=300,
+                       help='DPI für OCR (Standard: 300)')
     
     args = parser.parse_args()
     
     suite = GermanAccountingSuite(
         use_ocr=not args.no_ocr,
-        smart_suggest=not args.no_smart
+        smart_suggest=not args.no_smart,
+        ocr_preset=args.preset,
+        ocr_languages=args.lang,
+        dpi=args.dpi
     )
     
     if args.batch:
