@@ -1,0 +1,23 @@
+# Large directories not needed for skill distribution
+openclaw-skills-registry/
+clawsuite/
+node_modules/
+
+# Git internals
+.git/
+
+# State files
+.state/
+*.db
+*.sqlite
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# OS
+.DS_Store
