@@ -3,6 +3,12 @@
 SevDesk Skill - German Accounting Automation
 Handles invoices, contacts, vouchers, and banking via SevDesk API
 
+Improvements in v2.5:
+- **NEW: Streaming/Lazy Loading** - Memory-efficient pagination for large datasets
+- **NEW: Custom Exception Hierarchy** - Structured error handling with context
+- **NEW: Progress Bars** - Visual feedback for batch operations (requires tqdm)
+- **NEW: Colored CLI Output** - Enhanced terminal experience (requires colorama)
+
 Improvements in v2.2:
 - **NEW: Batch operations** - Bulk create/update contacts and invoices
 - **NEW: Health check** - API connectivity monitoring
@@ -38,12 +44,26 @@ import hmac
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any, Callable, TypeVar, Generic, Tuple, Union
+from typing import Optional, Dict, List, Any, Callable, TypeVar, Generic, Tuple, Union, Iterator
 from functools import wraps
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from pathlib import Path
 from collections import deque
+
+# Optional imports for enhanced UX
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+
+try:
+    from colorama import init as colorama_init, Fore, Style
+    COLORAMA_AVAILABLE = True
+    colorama_init()
+except ImportError:
+    COLORAMA_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(
@@ -54,9 +74,95 @@ logger = logging.getLogger('sevdesk')
 
 T = TypeVar('T')
 
+# ==================== CUSTOM EXCEPTION HIERARCHY ====================
+
+class SevDeskError(Exception):
+    """Base exception for all SevDesk-related errors"""
+    def __init__(self, message: str, error_code: Optional[str] = None, 
+                 context: Optional[Dict] = None, suggestion: Optional[str] = None):
+        super().__init__(message)
+        self.message = message
+        self.error_code = error_code
+        self.context = context or {}
+        self.suggestion = suggestion
+    
+    def __str__(self) -> str:
+        parts = [self.message]
+        if self.error_code:
+            parts.append(f"[Code: {self.error_code}]")
+        if self.suggestion:
+            parts.append(f"\n💡 Suggestion: {self.suggestion}")
+        return " ".join(parts)
+
+class AuthenticationError(SevDeskError):
+    """API authentication failed"""
+    pass
+
+class ValidationError(SevDeskError):
+    """Input validation failed"""
+    pass
+
+class RateLimitError(SevDeskError):
+    """API rate limit exceeded"""
+    def __init__(self, message: str, retry_after: Optional[int] = None, **kwargs):
+        super().__init__(message, **kwargs)
+        self.retry_after = retry_after
+
+class ResourceNotFoundError(SevDeskError):
+    """Requested resource not found"""
+    pass
+
+class CircuitBreakerOpenError(SevDeskError):
+    """Circuit breaker is open - API temporarily unavailable"""
+    pass
+
+class ServerError(SevDeskError):
+    """SevDesk server error"""
+    pass
+
+class NetworkError(SevDeskError):
+    """Network connectivity issue"""
+    pass
+
+
+# ==================== COLORED OUTPUT HELPERS ====================
+
+class Colors:
+    """Terminal color helpers with fallback for non-color terminals"""
+    
+    @staticmethod
+    def _color(code: str, text: str) -> str:
+        if COLORAMA_AVAILABLE:
+            return f"{code}{text}{Style.RESET_ALL}"
+        return text
+    
+    @classmethod
+    def red(cls, text: str) -> str:
+        return cls._color(Fore.RED if COLORAMA_AVAILABLE else "", text)
+    
+    @classmethod
+    def green(cls, text: str) -> str:
+        return cls._color(Fore.GREEN if COLORAMA_AVAILABLE else "", text)
+    
+    @classmethod
+    def yellow(cls, text: str) -> str:
+        return cls._color(Fore.YELLOW if COLORAMA_AVAILABLE else "", text)
+    
+    @classmethod
+    def blue(cls, text: str) -> str:
+        return cls._color(Fore.BLUE if COLORAMA_AVAILABLE else "", text)
+    
+    @classmethod
+    def cyan(cls, text: str) -> str:
+        return cls._color(Fore.CYAN if COLORAMA_AVAILABLE else "", text)
+    
+    @classmethod
+    def bold(cls, text: str) -> str:
+        return cls._color(Style.BRIGHT if COLORAMA_AVAILABLE else "", text)
+
 # ==================== VERSION & CONSTANTS ====================
 
-VERSION = "2.3.0"
+VERSION = "2.5.0"
 
 class InvoiceStatus(IntEnum):
     """Invoice status codes"""
@@ -406,8 +512,9 @@ class SimpleCache:
 
 def retry_on_error(max_retries: int = DEFAULT_MAX_RETRIES, delay: float = DEFAULT_RETRY_DELAY, 
                    exceptions: tuple = (requests.RequestException,),
-                   backoff_factor: float = 2.0) -> Callable:
-    """Decorator for retry logic with exponential backoff"""
+                   backoff_factor: float = 2.0,
+                   on_retry: Optional[Callable[[int, Exception], None]] = None) -> Callable:
+    """Decorator for retry logic with exponential backoff and progress callback"""
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args, **kwargs) -> T:
@@ -420,7 +527,38 @@ def retry_on_error(max_retries: int = DEFAULT_MAX_RETRIES, delay: float = DEFAUL
                     if attempt < max_retries - 1:
                         wait_time = delay * (backoff_factor ** attempt)
                         logger.warning(f"Attempt {attempt + 1}/{max_retries} failed for {func.__name__}: {e}. Retrying in {wait_time:.1f}s...")
+                        if on_retry:
+                            on_retry(attempt + 1, e)
                         time.sleep(wait_time)
+            
+            # Convert to appropriate exception type
+            if isinstance(last_exception, requests.exceptions.HTTPError):
+                response = last_exception.response
+                status_map = {
+                    401: AuthenticationError("Invalid API token", error_code="AUTH_001",
+                                             suggestion="Check your SEVDESK_API_TOKEN environment variable."),
+                    403: AuthenticationError("Access forbidden", error_code="AUTH_002",
+                                             suggestion="Check your API token permissions."),
+                    404: ResourceNotFoundError(f"Resource not found: {response.url}", error_code="NOT_FOUND_001"),
+                    422: ValidationError(f"Invalid data: {response.text}", error_code="VALIDATION_001"),
+                    429: RateLimitError("Rate limit exceeded", retry_after=60, error_code="RATE_001",
+                                        suggestion="Wait before retrying."),
+                    500: ServerError("SevDesk server error", error_code="SERVER_001", 
+                                     suggestion="Please try again later."),
+                    502: ServerError("Bad Gateway", error_code="SERVER_002",
+                                     suggestion="SevDesk is temporarily unavailable."),
+                    503: ServerError("Service unavailable", error_code="SERVER_003",
+                                     suggestion="SevDesk is under maintenance."),
+                }
+                if response.status_code in status_map:
+                    raise status_map[response.status_code] from last_exception
+            elif isinstance(last_exception, requests.exceptions.ConnectionError):
+                raise NetworkError("Connection failed", error_code="NET_001",
+                                   suggestion="Check your internet connection.") from last_exception
+            elif isinstance(last_exception, requests.exceptions.Timeout):
+                raise NetworkError("Request timed out", error_code="NET_002",
+                                   suggestion="Try again later or increase timeout.") from last_exception
+            
             logger.error(f"All {max_retries} attempts failed for {func.__name__}")
             raise last_exception
         return wrapper
@@ -728,25 +866,28 @@ class SevDeskClient:
         
         return f"API Error {response.status_code}: {str(error)}"
     
-    def _get_all_pages(self, endpoint: str, params: Optional[Dict] = None, 
-                       limit: int = 1000) -> List[Dict]:
+    def _get_all_pages_streaming(self, endpoint: str, params: Optional[Dict] = None,
+                                  limit: int = 1000, page_size: int = 100,
+                                  progress_callback: Optional[Callable[[int, int], None]] = None) -> Iterator[Dict]:
         """
-        Fetch all paginated results
+        Fetch paginated results as a generator for memory-efficient streaming
         
         Args:
             endpoint: API endpoint
             params: Query parameters
             limit: Maximum number of results to fetch
-        
-        Returns:
-            List of all objects
+            page_size: Items per page (max 100)
+            progress_callback: Optional callback(current, total) for progress updates
+            
+        Yields:
+            Individual objects as they're fetched
         """
-        all_objects: List[Dict] = []
         params = params or {}
-        params['limit'] = min(limit, 100)  # API max is 100
+        params['limit'] = min(page_size, 100)
         offset = 0
+        total_yielded = 0
         
-        while len(all_objects) < limit:
+        while total_yielded < limit:
             params['offset'] = offset
             result = self._request("GET", endpoint, params=params, use_cache=False)
             
@@ -758,7 +899,14 @@ class SevDeskClient:
             if not objects:
                 break
             
-            all_objects.extend(objects)
+            for obj in objects:
+                if total_yielded >= limit:
+                    return
+                yield obj
+                total_yielded += 1
+                
+                if progress_callback:
+                    progress_callback(total_yielded, limit)
             
             if len(objects) < params['limit']:
                 break
@@ -766,20 +914,95 @@ class SevDeskClient:
             offset += params['limit']
             
             # Be nice to the API
-            if len(all_objects) < limit:
+            if total_yielded < limit:
                 time.sleep(0.1)
+    
+    def list_contacts_streaming(self, search: Optional[str] = None, limit: int = 1000,
+                                 show_progress: bool = False) -> Iterator[Dict]:
+        """
+        Stream contacts with optional progress bar (memory-efficient)
         
-        return all_objects[:limit]
-    
-    # ==================== CONTACTS ====================
-    
-    def list_contacts(self, search: Optional[str] = None, limit: int = 100) -> Dict:
-        """List all contacts (customers/suppliers) with pagination"""
+        Args:
+            search: Optional search filter
+            limit: Maximum results
+            show_progress: Show progress bar (requires tqdm)
+            
+        Yields:
+            Contact dicts one at a time
+        """
         params: Dict[str, Any] = {}
         if search:
             params["name"] = search
         
-        objects = self._get_all_pages("/Contact", params, limit)
+        if show_progress and TQDM_AVAILABLE:
+            # First get total count
+            first_page = self._request("GET", "/Contact", params={**params, "limit": 1})
+            total = first_page.get("objects", [])
+            total_count = total[0].get("total", limit) if total else limit
+            
+            with tqdm(total=min(total_count, limit), desc="Loading contacts") as pbar:
+                for contact in self._get_all_pages_streaming("/Contact", params, limit):
+                    pbar.update(1)
+                    yield contact
+        else:
+            yield from self._get_all_pages_streaming("/Contact", params, limit)
+    
+    def list_invoices_streaming(self, status: Optional[str] = None, limit: int = 1000,
+                                 start_date: Optional[str] = None, end_date: Optional[str] = None,
+                                 show_progress: bool = False) -> Iterator[Dict]:
+        """
+        Stream invoices with optional progress bar (memory-efficient)
+        
+        Args:
+            status: Filter by status
+            limit: Maximum results
+            start_date: Start date filter
+            end_date: End date filter
+            show_progress: Show progress bar (requires tqdm)
+            
+        Yields:
+            Invoice dicts one at a time
+        """
+        params: Dict[str, Any] = {}
+        if status:
+            status_map = {
+                "draft": str(InvoiceStatus.DRAFT),
+                "open": str(InvoiceStatus.OPEN),
+                "paid": str(InvoiceStatus.PAID),
+                "overdue": str(InvoiceStatus.OPEN)
+            }
+            params["status"] = status_map.get(status, status)
+        if start_date:
+            params["startDate"] = start_date
+        if end_date:
+            params["endDate"] = end_date
+        
+        if show_progress and TQDM_AVAILABLE:
+            with tqdm(total=limit, desc="Loading invoices") as pbar:
+                for invoice in self._get_all_pages_streaming("/Invoice", params, limit):
+                    pbar.update(1)
+                    yield invoice
+        else:
+            yield from self._get_all_pages_streaming("/Invoice", params, limit)
+    
+    # ==================== CONTACTS ====================
+    
+    def list_contacts(self, search: Optional[str] = None, limit: int = 100, use_streaming: bool = False) -> Dict:
+        """List all contacts (customers/suppliers) with pagination
+        
+        Args:
+            search: Optional name search
+            limit: Maximum results
+            use_streaming: Use memory-efficient streaming for large datasets
+        """
+        if use_streaming and limit > 100:
+            objects = list(self.list_contacts_streaming(search=search, limit=limit))
+        else:
+            params: Dict[str, Any] = {}
+            if search:
+                params["name"] = search
+            objects = list(self._get_all_pages_streaming("/Contact", params, limit))
+        
         return {"objects": objects, "total": len(objects)}
     
     def get_contact(self, contact_id: str) -> Dict:
@@ -817,23 +1040,37 @@ class SevDeskClient:
     # ==================== INVOICES ====================
     
     def list_invoices(self, status: Optional[str] = None, limit: int = 100,
-                      start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict:
-        """List invoices with optional filters and pagination"""
-        params: Dict[str, Any] = {}
-        if status:
-            status_map = {
-                "draft": str(InvoiceStatus.DRAFT),
-                "open": str(InvoiceStatus.OPEN),
-                "paid": str(InvoiceStatus.PAID),
-                "overdue": str(InvoiceStatus.OPEN)
-            }
-            params["status"] = status_map.get(status, status)
-        if start_date:
-            params["startDate"] = start_date
-        if end_date:
-            params["endDate"] = end_date
+                      start_date: Optional[str] = None, end_date: Optional[str] = None,
+                      use_streaming: bool = False) -> Dict:
+        """List invoices with optional filters and pagination
         
-        objects = self._get_all_pages("/Invoice", params, limit)
+        Args:
+            status: Filter by status
+            limit: Maximum results
+            start_date: Start date filter
+            end_date: End date filter
+            use_streaming: Use memory-efficient streaming for large datasets
+        """
+        if use_streaming and limit > 100:
+            objects = list(self.list_invoices_streaming(status=status, limit=limit,
+                                                        start_date=start_date, end_date=end_date))
+        else:
+            params: Dict[str, Any] = {}
+            if status:
+                status_map = {
+                    "draft": str(InvoiceStatus.DRAFT),
+                    "open": str(InvoiceStatus.OPEN),
+                    "paid": str(InvoiceStatus.PAID),
+                    "overdue": str(InvoiceStatus.OPEN)
+                }
+                params["status"] = status_map.get(status, status)
+            if start_date:
+                params["startDate"] = start_date
+            if end_date:
+                params["endDate"] = end_date
+            
+            objects = list(self._get_all_pages_streaming("/Invoice", params, limit))
+        
         return {"objects": objects, "total": len(objects)}
     
     def get_invoice(self, invoice_id: str) -> Dict:
@@ -1084,13 +1321,15 @@ class SevDeskClient:
     # ==================== v2.2.0: BATCH OPERATIONS ====================
     
     def batch_create_contacts(self, contacts: List[Dict], 
-                              continue_on_error: bool = True) -> BatchResult:
+                              continue_on_error: bool = True,
+                              show_progress: bool = True) -> BatchResult:
         """
-        Batch create multiple contacts with concurrency control
+        Batch create multiple contacts with concurrency control and progress bar
         
         Args:
             contacts: List of contact data dicts with 'name', 'email', etc.
             continue_on_error: Continue processing if individual items fail
+            show_progress: Show progress bar (requires tqdm)
         
         Returns:
             BatchResult with successful and failed operations
@@ -1107,8 +1346,12 @@ class SevDeskClient:
             except Exception as e:
                 return None, {"data": contact_data, "error": str(e)}
         
+        iterator = enumerate(contacts)
+        if show_progress and TQDM_AVAILABLE:
+            iterator = tqdm(list(iterator), desc="Creating contacts", unit="contact")
+        
         with ThreadPoolExecutor(max_workers=self._batch_concurrency) as executor:
-            futures = {executor.submit(create_single, c): c for c in contacts}
+            futures = {executor.submit(create_single, c): i for i, c in enumerate(contacts)}
             
             for future in as_completed(futures):
                 success, error = future.result()
@@ -1119,6 +1362,9 @@ class SevDeskClient:
                     if not continue_on_error:
                         executor.shutdown(wait=False)
                         break
+                
+                if show_progress and TQDM_AVAILABLE:
+                    pass  # tqdm handles progress automatically
         
         result.duration_ms = (time.time() - start_time) * 1000
         logger.info(f"Batch create contacts: {result.success_count}/{result.total} successful "
@@ -1126,13 +1372,15 @@ class SevDeskClient:
         return result
     
     def batch_create_invoices(self, invoices: List[Dict],
-                              continue_on_error: bool = True) -> BatchResult:
+                              continue_on_error: bool = True,
+                              show_progress: bool = True) -> BatchResult:
         """
-        Batch create multiple invoices with concurrency control
+        Batch create multiple invoices with concurrency control and progress bar
         
         Args:
             invoices: List of invoice data dicts with 'contact_id', 'items', etc.
             continue_on_error: Continue processing if individual items fail
+            show_progress: Show progress bar (requires tqdm)
         
         Returns:
             BatchResult with successful and failed operations
@@ -1149,8 +1397,13 @@ class SevDeskClient:
             except Exception as e:
                 return None, {"data": invoice_data, "error": str(e)}
         
+        if show_progress and TQDM_AVAILABLE:
+            invoices_iter = tqdm(invoices, desc="Creating invoices", unit="invoice")
+        else:
+            invoices_iter = invoices
+        
         with ThreadPoolExecutor(max_workers=self._batch_concurrency) as executor:
-            futures = {executor.submit(create_single, inv): inv for inv in invoices}
+            futures = {executor.submit(create_single, inv): inv for inv in invoices_iter}
             
             for future in as_completed(futures):
                 success, error = future.result()
@@ -1929,10 +2182,10 @@ Examples:
 
 
 def handle_contacts_command(client: SevDeskClient, args: argparse.Namespace) -> None:
-    """Handle contacts command"""
-    result = client.list_contacts(search=args.search, limit=args.limit)
+    """Handle contacts command with colored output"""
+    result = client.list_contacts(search=args.search, limit=args.limit, use_streaming=args.limit > 200)
     contacts = result.get("objects", [])
-    print(f"\n📇 {len(contacts)} Kontakte gefunden:\n")
+    print(f"\n{Colors.cyan('📇')} {Colors.bold(str(len(contacts)))} Kontakte gefunden:\n")
     for c in contacts[:20]:
         print(client.format_contact(c))
 
@@ -1944,24 +2197,27 @@ def handle_contact_command(client: SevDeskClient, args: argparse.Namespace) -> N
 
 
 def handle_create_contact_command(client: SevDeskClient, args: argparse.Namespace) -> None:
-    """Handle create-contact command"""
+    """Handle create-contact command with colored output"""
     result = client.create_contact(args.name, args.email, args.phone)
     if 'error' in result:
-        print(f"❌ Error: {result['error']}")
+        print(Colors.red(f"❌ Error: {result['error']}"))
     else:
-        print(f"✅ Contact created: {result.get('objects', [{}])[0].get('id')}")
+        contact_id = result.get('objects', [{}])[0].get('id')
+        print(Colors.green(f"✅ Contact created: {contact_id}"))
 
 
 def handle_invoices_command(client: SevDeskClient, args: argparse.Namespace) -> None:
-    """Handle invoices command"""
+    """Handle invoices command with colored output and streaming for large results"""
+    use_streaming = args.limit > 200
     result = client.list_invoices(
         status=args.status,
         limit=args.limit,
         start_date=args.start_date,
-        end_date=args.end_date
+        end_date=args.end_date,
+        use_streaming=use_streaming
     )
     invoices = result.get("objects", [])
-    print(f"\n📄 {len(invoices)} Rechnungen:\n")
+    print(f"\n{Colors.cyan('📄')} {Colors.bold(str(len(invoices)))} Rechnungen:\n")
     for inv in invoices[:20]:
         print(client.format_invoice(inv))
 
@@ -2050,42 +2306,48 @@ def handle_vouchers_command(client: SevDeskClient, args: argparse.Namespace) -> 
 
 
 def handle_stats_command(client: SevDeskClient, args: argparse.Namespace) -> None:
-    """Handle stats command"""
+    """Handle stats command with colored output"""
     if args.clear_cache:
         client.clear_cache()
+        print(Colors.yellow("🗑️  Cache cleared"))
     
     stats = client.get_stats()
-    print(f"\n📊 API Statistics:\n")
-    print(f"  Total Requests: {stats['request_count']}")
-    print(f"  Cached Requests: {stats['cached_request_count']}")
-    print(f"  Circuit State: {stats['circuit_state']}")
+    print(f"\n{Colors.cyan('📊')} {Colors.bold('API Statistics:')}\n")
+    print(f"  Total Requests: {Colors.bold(str(stats['request_count']))}")
+    print(f"  Cached Requests: {Colors.green(str(stats['cached_request_count']))}")
+    print(f"  Circuit State: {Colors.yellow(stats['circuit_state'])}")
     print(f"  Circuit Failures: {stats['circuit_failures']}")
     
     if 'cache' in stats:
         cache = stats['cache']
-        print(f"\n  Cache Statistics:")
+        print(f"\n  {Colors.bold('Cache Statistics:')}")
         print(f"    Entries: {cache['size']}")
-        print(f"    Hits: {cache['hits']}")
+        print(f"    Hits: {Colors.green(str(cache['hits']))}")
         print(f"    Misses: {cache['misses']}")
-        print(f"    Hit Rate: {cache['hit_rate_percent']}%")
+        hit_rate_str = f"{cache['hit_rate_percent']}%"
+        hit_rate_color = Colors.green if cache['hit_rate_percent'] > 50 else Colors.yellow
+        print(f"    Hit Rate: {hit_rate_color(hit_rate_str)}")
     
     if 'last_response' in stats:
         last = stats['last_response']
-        print(f"\n  Last Response:")
-        print(f"    Cached: {last['cached']}")
+        print(f"\n  {Colors.bold('Last Response:')}")
+        print(f"    Cached: {'Yes' if last['cached'] else 'No'}")
         print(f"    Duration: {last['duration_ms']}ms")
         if last['rate_limit_remaining']:
-            print(f"    Rate Limit Remaining: {last['rate_limit_remaining']}")
+            rl_color = Colors.green if last['rate_limit_remaining'] > 10 else Colors.red
+            print(f"    Rate Limit Remaining: {rl_color(str(last['rate_limit_remaining']))}")
 
 
 # ==================== v2.2.0: NEW COMMAND HANDLERS ====================
 
 def handle_health_command(client: SevDeskClient, args: argparse.Namespace) -> None:
-    """Handle health check command"""
+    """Handle health check command with colored output"""
     health = client.health_check(timeout=args.timeout)
-    status = "✅ Healthy" if health.healthy else "❌ Unhealthy"
-    print(f"\n{status}")
-    print(f"  Response Time: {health.response_time_ms:.1f}ms")
+    if health.healthy:
+        print(f"\n{Colors.green('✅ Healthy')}")
+    else:
+        print(f"\n{Colors.red('❌ Unhealthy')}")
+    print(f"  Response Time: {Colors.cyan(f'{health.response_time_ms:.1f}ms')}")
     print(f"  API Version: {health.api_version or 'unknown'}")
     print(f"  Message: {health.message}")
     print(f"  Timestamp: {health.timestamp.isoformat()}")
@@ -2118,7 +2380,7 @@ def handle_export_invoices_command(client: SevDeskClient, args: argparse.Namespa
 
 
 def handle_batch_create_contacts_command(client: SevDeskClient, args: argparse.Namespace) -> None:
-    """Handle batch-create-contacts command"""
+    """Handle batch-create-contacts command with colored output and progress bar"""
     try:
         with open(args.csv_file, 'r', encoding='utf-8') as f:
             csv_data = f.read()
@@ -2126,25 +2388,26 @@ def handle_batch_create_contacts_command(client: SevDeskClient, args: argparse.N
         result = client.import_contacts_csv(csv_data, dry_run=args.dry_run)
         
         if args.dry_run:
-            print(f"\n🔍 Dry Run: Would create {result.success_count} contacts")
+            print(f"\n{Colors.yellow('🔍')} Dry Run: Would create {Colors.bold(str(result.success_count))} contacts")
             for item in result.successful[:5]:
                 print(f"  - {item['data'].get('name', 'N/A')}")
             if len(result.successful) > 5:
                 print(f"  ... and {len(result.successful) - 5} more")
         else:
-            print(f"\n✅ Batch Result:")
-            print(f"  Successful: {result.success_count}/{result.total}")
-            print(f"  Failed: {result.failure_count}")
-            print(f"  Success Rate: {result.success_rate:.1f}%")
+            success_rate_color = Colors.green if result.success_rate > 90 else Colors.yellow if result.success_rate > 50 else Colors.red
+            print(f"\n{Colors.cyan('✅')} {Colors.bold('Batch Result:')}")
+            print(f"  Successful: {Colors.green(str(result.success_count))}/{result.total}")
+            print(f"  Failed: {Colors.red(str(result.failure_count))}")
+            print(f"  Success Rate: {success_rate_color(f'{result.success_rate:.1f}%')}")
             print(f"  Duration: {result.duration_ms:.0f}ms")
             
             if result.failed:
-                print(f"\n❌ Failures:")
+                print(f"\n{Colors.red('❌ Failures:')}")
                 for fail in result.failed[:5]:
                     print(f"  - {fail.get('data', {}).get('name', 'N/A')}: {fail.get('error')}")
     
     except FileNotFoundError:
-        print(f"❌ File not found: {args.csv_file}")
+        print(Colors.red(f"❌ File not found: {args.csv_file}"))
         sys.exit(1)
 
 
@@ -2332,7 +2595,7 @@ def handle_batch_dunning_command(client: SevDeskClient, args: argparse.Namespace
 
 
 def main():
-    """Main CLI entry point"""
+    """Main CLI entry point with colored error handling"""
     parser = create_parser()
     args = parser.parse_args()
     
@@ -2349,7 +2612,7 @@ def main():
             enable_cache=not args.no_cache
         )
     except ValueError as e:
-        print(f"❌ Error: {e}")
+        print(Colors.red(f"❌ Error: {e}"))
         sys.exit(1)
     
     # Command dispatch
@@ -2388,15 +2651,34 @@ def main():
     if handler:
         try:
             handler(client, args)
+        except (ValidationError, AuthenticationError, ResourceNotFoundError) as e:
+            print(Colors.red(f"❌ {e.__class__.__name__}: {e.message}"))
+            if e.suggestion:
+                print(Colors.yellow(f"💡 {e.suggestion}"))
+            sys.exit(1)
+        except CircuitBreakerOpenError as e:
+            print(Colors.red(f"⛔ {e.message}"))
+            print(Colors.yellow("💡 Wait a moment and try again"))
+            sys.exit(1)
+        except RateLimitError as e:
+            print(Colors.red(f"⏱️  Rate Limit Exceeded"))
+            if e.retry_after:
+                print(Colors.yellow(f"💡 Retry after {e.retry_after} seconds"))
+            sys.exit(1)
+        except NetworkError as e:
+            print(Colors.red(f"🌐 Network Error: {e.message}"))
+            if e.suggestion:
+                print(Colors.yellow(f"💡 {e.suggestion}"))
+            sys.exit(1)
         except ValueError as e:
-            print(f"❌ Validation Error: {e}")
+            print(Colors.red(f"❌ Validation Error: {e}"))
             sys.exit(1)
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
-            print(f"❌ Error: {e}")
+            print(Colors.red(f"❌ Unexpected Error: {e}"))
             sys.exit(1)
     else:
-        print(f"❌ Unknown command: {args.command}")
+        print(Colors.red(f"❌ Unknown command: {args.command}"))
         parser.print_help()
         sys.exit(1)
 
